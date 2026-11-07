@@ -98,7 +98,46 @@ CLINICAL_PHARMACOPEIA = {
     "dexamethasone": {"smiles": "CC1CC2C3CCC4=CC(=O)C=CC4(C3(C(CC2(C1(C(=O)CO)O)C)O)F)C", "class": "Immunology / Corticosteroid", "brand": "Decadron"},
     "prednisone": {"smiles": "CC12CC(=O)C3C(C1CCC2(C(=O)CO)O)CCC4=CC(=O)C=CC34C", "class": "Immunology / Corticosteroid", "brand": "Deltasone"},
     "hydrocortisone": {"smiles": "CC12CCC(=O)C=C1CCC3C2C(CC4(C3CCC4(C(=O)CO)O)C)O", "class": "Immunology / Glucocorticoid", "brand": "Cortef"},
-    "tacrolimus": {"smiles": "CC1CC(CC(=C(CC(C(C(=O)C(=O)N2CCCCC2C(=O)OC(C(C(CC(=O)C(CC=C)C1)O)C)C(C)CC3=CC(=C(C=C3)OC)OC)C)OC)C)C)OC", "class": "Immunology / Calcineurin Inhibitor", "brand": "Prograf"}
+    "tacrolimus": {"smiles": "CC1CC(CC(=C(CC(C(C(=O)C(=O)N2CCCCC2C(=O)OC(C(C(CC(=O)C(CC=C)C1)O)C)C(C)CC3=CC(=C(C=C3)OC)OC)C)OC)C)C)OC", "class": "Immunology / Calcineurin Inhibitor", "brand": "Prograf"},
+    "hydroxychloroquine": {"smiles": "CCN(CCO)CCCC(C)NC1=C2C=CC(=CC2=NC=C1)Cl", "class": "Immunology / Antimalarial", "brand": "Plaquenil"},
+    "prednisolone": {"smiles": "CC12C=CC(=O)C=C1CCC3C2C(CC4(C3CCC4(C(=O)CO)O)C)O", "class": "Immunology / Corticosteroid", "brand": "Prelone"},
+
+    # Neurology & Anticonvulsants
+    "gabapentin": {"smiles": "C1CCC(CC1)(CC(=O)O)CN", "class": "Neurology / GABA Analog", "brand": "Neurontin"},
+    "pregabalin": {"smiles": "CC(C)CC(CC(=O)O)CN", "class": "Neurology / GABA Analog", "brand": "Lyrica"},
+    "clonazepam": {"smiles": "C1C(=O)NC2=C(C=C(C=C2)[N+](=O)[O-])C(=N1)C3=CC=CC=C3Cl", "class": "CNS / Benzodiazepine", "brand": "Klonopin"},
+    "haloperidol": {"smiles": "C1CN(CCC1(C2=CC=C(C=C2)Cl)O)CCCC(=O)C3=CC=C(C=C3)F", "class": "CNS / Typical Antipsychotic", "brand": "Haldol"},
+    "bupropion": {"smiles": "CC(C(=O)C1=CC(=CC=C1)Cl)NC(C)(C)C", "class": "CNS / NDRI Antidepressant", "brand": "Wellbutrin"},
+    "venlafaxine": {"smiles": "CN(C)CC(C1(CCCCC1)O)C2=CC=C(C=C2)OC", "class": "CNS / SNRI Antidepressant", "brand": "Effexor"},
+    "zolpidem": {"smiles": "CC1=CC=C(C=C1)C2=C(N3C=C(C=CC3=N2)C)CC(=O)N(C)C", "class": "CNS / Sedative-Hypnotic", "brand": "Ambien"},
+
+    # Additional Cardiovascular & Renal
+    "simvastatin": {"smiles": "CCC(C)(C)C(=O)OC1CC(C=C2C1C(C(C=C2)C)CCC3CC(CC(=O)O3)O)C", "class": "Cardiovascular / Statin", "brand": "Zocor"},
+    "pravastatin": {"smiles": "CCC(C)C(=O)OC1CC(O)C=C2C1C(C(C=C2)C)CCC(O)CC(O)CC(=O)O", "class": "Cardiovascular / Statin", "brand": "Pravachol"},
+    "furosemide": {"smiles": "C1=C(C=C(C(=C1Cl)S(=O)(=O)N)C(=O)O)NCC2=CC=CO2", "class": "Cardiovascular / Loop Diuretic", "brand": "Lasix"},
+    "hydrochlorothiazide": {"smiles": "C1NC2=CC(=C(C=C2S(=O)(=O)N1)S(=O)(=O)N)Cl", "class": "Cardiovascular / Thiazide Diuretic", "brand": "Microzide"},
+    "spironolactone": {"smiles": "CC12CCC(=O)C=C1CCC3C2C(CC4(C3CCC4(C)C5=CC(=O)OCC5)SC(=O)C)O", "class": "Cardiovascular / Aldosterone Antagonist", "brand": "Aldactone"},
+    "valsartan": {"smiles": "CCCCC(=O)N(CC1=CC=C(C=C1)C2=CC=CC=C2C3=NNN=N3)C(C(C)C)C(=O)O", "class": "Cardiovascular / ARB", "brand": "Diovan"},
+    "atenolol": {"smiles": "CC(C)NCC(COC1=CC=C(C=C1)CC(=O)N)O", "class": "Cardiovascular / Beta Blocker", "brand": "Tenormin"},
+    "carvedilol": {"smiles": "CC(COC1=CC=CC2=C1C=C(C=C2)NC3=CC=CC=C3)NCC(COC4=CC=CC=C4OC)O", "class": "Cardiovascular / Dual Alpha-Beta Blocker", "brand": "Coreg"},
+
+    # Gastrointestinal H2 Blockers & PPIs
+    "famotidine": {"smiles": "C1(=NC(=CS1)CSCCN=C(N)N)N", "class": "Gastrointestinal / H2 Antagonist", "brand": "Pepcid"},
+    "esomeprazole": {"smiles": "CC1=CN=C(C(=C1OC)C)CS(=O)C2=NC3=C(N2)C=C(C=C3)OC", "class": "Gastrointestinal / PPI", "brand": "Nexium"},
+    "lansoprazole": {"smiles": "CC1=C(C(=NC=C1)CS(=O)C2=NC3=C(N2)C=CC=C3)OCC(F)(F)F", "class": "Gastrointestinal / PPI", "brand": "Prevacid"},
+
+    # Antimicrobial & Antifungal
+    "clarithromycin": {"smiles": "CCC1C(C(C(N(CC(CC(C(C(C(C(=O)O1)C)OC2CC(C(C(O2)C)O)(C)OC)C)OC3C(C(CC(O3)C)N(C)C)O)(C)OC)C)C)O)(C)O", "class": "Antibiotic / Macrolide", "brand": "Biaxin"},
+    "nitrofurantoin": {"smiles": "C1C(=O)NC(=O)N1/N=C/C2=CC=C(O2)[N+](=O)[O-]", "class": "Antibiotic / Nitrofuran", "brand": "Macrobid"},
+    "fluconazole": {"smiles": "C1=CC(=C(C=C1F)F)C(CN2C=NC=N2)(CN3C=NC=N3)O", "class": "Antifungal / Triazole", "brand": "Diflucan"},
+
+    # Phosphodiesterase-5 Inhibitors & Urology
+    "sildenafil": {"smiles": "CCCC1=NN(C2=C1N=C(NC2=O)C3=C(C=CC(=C3)S(=O)(=O)N4CCN(CC4)C)OCC)C", "class": "Urology / PDE5 Inhibitor", "brand": "Viagra / Revatio"},
+    "tadalafil": {"smiles": "CC12C3=C(NC1=O)C4=CC=CC=C4C3CC5=C2CN(CC5=O)C6=CC7=C(C=C6)OCO7", "class": "Urology / PDE5 Inhibitor", "brand": "Cialis"},
+
+    # Opioid Overdose & Dependence Therapeutics
+    "naloxone": {"smiles": "C=CCN1CCC23C4C1CC5=C2C(=C(C=C5)O)OC3C(=O)CCC4(O)O", "class": "Toxicology / Opioid Antagonist", "brand": "Narcan"},
+    "methadone": {"smiles": "CCC(=O)C(CC(C)N(C)C)(C1=CC=CC=C1)C2=CC=CC=C2", "class": "Analgesic / Opioid Agonist", "brand": "Dolophine"}
 }
 
 

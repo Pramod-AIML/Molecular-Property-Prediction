@@ -70,6 +70,11 @@ class BatchSmilesRequest(BaseModel):
         description="List of compound dictionaries containing 'id' and 'smiles'"
     )
 
+class MoleculeGraphPayload(BaseModel):
+    atoms: List[dict] = Field(..., description="List of atom dictionaries with symbol, x, y")
+    bonds: List[dict] = Field(..., description="List of bond dictionaries with source, target, order (1, 2, 3, 4)")
+
+
 
 # ---------------------------------------------------------------------------
 # WEB APPLICATION ROUTE
@@ -237,6 +242,62 @@ def get_2d_svg(payload: SmilesRequest):
         return {"success": True, "svg": svg, "resolved_smiles": smi}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/v1/molecule/graph-to-smiles", tags=["Sketcher"])
+def graph_to_smiles_endpoint(payload: MoleculeGraphPayload):
+    """
+    Converts 2D drawn atom nodes and bond edges into a validated chemical SMILES string and 2D vector SVG.
+    """
+    try:
+        if not payload.atoms:
+            return {"success": False, "error": "No atoms drawn."}
+
+        rw_mol = Chem.RWMol()
+        atom_idx_map = {}
+        for idx, a in enumerate(payload.atoms):
+            symbol = a.get("symbol", "C").capitalize().strip()
+            atom = Chem.Atom(symbol)
+            atom_idx = rw_mol.AddAtom(atom)
+            atom_idx_map[idx] = atom_idx
+
+        bond_types = {
+            1: Chem.BondType.SINGLE,
+            2: Chem.BondType.DOUBLE,
+            3: Chem.BondType.TRIPLE,
+            4: Chem.BondType.AROMATIC
+        }
+
+        for b in payload.bonds:
+            src = b.get("source")
+            tgt = b.get("target")
+            order = b.get("order", 1)
+            if src in atom_idx_map and tgt in atom_idx_map and src != tgt:
+                b_type = bond_types.get(order, Chem.BondType.SINGLE)
+                existing = rw_mol.GetBondBetweenAtoms(atom_idx_map[src], atom_idx_map[tgt])
+                if existing is None:
+                    rw_mol.AddBond(atom_idx_map[src], atom_idx_map[tgt], b_type)
+
+        mol = rw_mol.GetMol()
+        try:
+            Chem.SanitizeMol(mol)
+        except Exception:
+            pass
+
+        smi = Chem.MolToSmiles(mol)
+        if not smi:
+            return {"success": False, "error": "Empty or invalid structure."}
+
+        drawer = rdMolDraw2D.MolDraw2DSVG(380, 240)
+        opts = drawer.drawOptions()
+        opts.clearBackground = True
+        drawer.DrawMolecule(mol)
+        drawer.FinishDrawing()
+        svg = drawer.GetDrawingText()
+
+        return {"success": True, "smiles": smi, "svg": svg}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 @app.post("/api/v1/optimize/lead", tags=["Lead Optimization"])

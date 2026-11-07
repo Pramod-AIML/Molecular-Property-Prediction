@@ -32,8 +32,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.0.4/3Dmol-min.js"></script>
     <!-- FontAwesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- JSME Molecule Sketcher -->
-    <script type="text/javascript" language="javascript" src="https://peter-ertl.com/jsme/JSME_2020-06-11/jsme/jsme.nocache.js"></script>
     <style>
         body {
             background-color: #070a13;
@@ -99,50 +97,227 @@
     <!-- Floating Toast Notification System -->
     <div id="toast-container" class="fixed top-20 right-6 z-50 flex flex-col space-y-2 pointer-events-none"></div>
 
-    <!-- 2D Molecular Sketcher Modal (JSME) -->
-    <div id="sketcher-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden">
-        <div class="glass-card rounded-2xl p-6 w-full max-w-3xl border border-cyan-800/80 shadow-2xl relative">
-            <div class="flex items-center justify-between border-b border-borderbg pb-3 mb-4">
-                <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-lg bg-cyan-950 text-cyan-400 border border-cyan-800 flex items-center justify-center">
-                        <i class="fa-solid fa-pen-nib"></i>
+    <!-- ============================================================== -->
+    <!-- INTERACTIVE 2D CHEMICAL SKETCHER MODAL STUDIO -->
+    <!-- ============================================================== -->
+    <div id="sketcher-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md hidden">
+        <div class="glass-card rounded-2xl p-6 w-full max-w-4xl border border-cyan-800/80 shadow-2xl relative flex flex-col max-h-[92vh]">
+            
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between border-b border-borderbg pb-3 mb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-400 text-darkbg font-bold flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                        <i class="fa-solid fa-pen-nib text-base"></i>
                     </div>
                     <div>
-                        <h3 class="font-bold text-white text-base">2D ChemDraw Molecular Sketcher</h3>
-                        <p class="text-xs text-slate-400">Draw any chemical scaffold or novel bioisostere to analyze</p>
+                        <h3 class="font-bold text-white text-base flex items-center gap-2">
+                            <span>2D Chemical Structure Sketcher Studio</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800">Interactive Canvas</span>
+                        </h3>
+                        <p class="text-xs text-slate-400">Click to place atoms, drag to create bonds, or stamp clinical rings and substituents</p>
                     </div>
                 </div>
-                <button onclick="closeSketcherModal()" class="text-slate-400 hover:text-white text-lg px-2 py-1 rounded-lg hover:bg-slate-800 transition">
+                <button onclick="closeSketcherModal()" class="text-slate-400 hover:text-white text-lg p-2 rounded-lg hover:bg-slate-800 transition">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
-            <!-- Sketcher Canvas Area -->
-            <div class="flex flex-col items-center justify-center bg-slate-950 rounded-xl border border-slate-800 p-2 overflow-hidden min-h-[380px]">
-                <div id="jsme-container" class="w-full flex justify-center"></div>
-                <div id="sketcher-fallback" class="hidden w-full p-4 text-center space-y-3">
-                    <p class="text-xs text-slate-400">Directly paste or edit Chemical SMILES below:</p>
-                    <input type="text" id="sketcher-manual-smiles" placeholder="e.g. c1ccccc1O (Phenol)" class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white font-mono text-xs">
+            <!-- Sketcher Mode Navigation Tabs -->
+            <div class="flex items-center gap-2 mb-3">
+                <button onclick="setSketcherMode('canvas')" id="tab-btn-canvas" class="sketcher-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 transition">
+                    <i class="fa-solid fa-paintbrush mr-1.5"></i>Interactive Canvas
+                </button>
+                <button onclick="setSketcherMode('scaffolds')" id="tab-btn-scaffolds" class="sketcher-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-400 border border-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-cubes mr-1.5"></i>1-Click Scaffolds
+                </button>
+                <button onclick="setSketcherMode('smiles')" id="tab-btn-smiles" class="sketcher-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-400 border border-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-code mr-1.5"></i>Direct SMILES / IUPAC
+                </button>
+            </div>
+
+            <!-- MODE 1: INTERACTIVE CANVAS SKETCHER -->
+            <div id="sketcher-view-canvas" class="flex-1 flex flex-col space-y-3">
+                
+                <!-- Tool Palette Bar -->
+                <div class="flex flex-wrap items-center justify-between gap-2 p-2 bg-slate-900/90 rounded-xl border border-slate-800 text-xs">
+                    
+                    <!-- Atom Selectors -->
+                    <div class="flex items-center gap-1">
+                        <span class="text-[10px] text-slate-400 uppercase font-bold mr-1">Atom:</span>
+                        <button onclick="setAtomTool('C')" id="atom-btn-C" class="atom-tool-btn px-2 py-1 rounded font-bold bg-cyan-500 text-darkbg shadow text-xs">C</button>
+                        <button onclick="setAtomTool('N')" id="atom-btn-N" class="atom-tool-btn px-2 py-1 rounded font-bold bg-slate-800 text-blue-400 border border-slate-700 text-xs">N</button>
+                        <button onclick="setAtomTool('O')" id="atom-btn-O" class="atom-tool-btn px-2 py-1 rounded font-bold bg-slate-800 text-rose-400 border border-slate-700 text-xs">O</button>
+                        <button onclick="setAtomTool('S')" id="atom-btn-S" class="atom-tool-btn px-2 py-1 rounded font-bold bg-slate-800 text-amber-400 border border-slate-700 text-xs">S</button>
+                        <button onclick="setAtomTool('F')" id="atom-btn-F" class="atom-tool-btn px-2 py-1 rounded font-bold bg-slate-800 text-emerald-400 border border-slate-700 text-xs">F</button>
+                        <button onclick="setAtomTool('Cl')" id="atom-btn-Cl" class="atom-tool-btn px-2 py-1 rounded font-bold bg-slate-800 text-emerald-300 border border-slate-700 text-xs">Cl</button>
+                        <button onclick="setAtomTool('Br')" id="atom-btn-Br" class="atom-tool-btn px-2 py-1 rounded font-bold bg-slate-800 text-orange-400 border border-slate-700 text-xs">Br</button>
+                        <button onclick="setAtomTool('P')" id="atom-btn-P" class="atom-tool-btn px-2 py-1 rounded font-bold bg-slate-800 text-purple-400 border border-slate-700 text-xs">P</button>
+                    </div>
+
+                    <!-- Bond Selector -->
+                    <div class="flex items-center gap-1 border-l border-slate-800 pl-2">
+                        <span class="text-[10px] text-slate-400 uppercase font-bold mr-1">Bond:</span>
+                        <button onclick="setBondOrder(1)" id="bond-btn-1" class="bond-tool-btn px-2.5 py-1 rounded font-bold bg-cyan-950 text-cyan-300 border border-cyan-800 text-xs">Single (—)</button>
+                        <button onclick="setBondOrder(2)" id="bond-btn-2" class="bond-tool-btn px-2.5 py-1 rounded font-bold bg-slate-800 text-slate-300 border border-slate-700 text-xs">Double (=)</button>
+                        <button onclick="setBondOrder(3)" id="bond-btn-3" class="bond-tool-btn px-2.5 py-1 rounded font-bold bg-slate-800 text-slate-300 border border-slate-700 text-xs">Triple (≡)</button>
+                        <button onclick="setEraseTool()" id="tool-btn-erase" class="px-2 py-1 rounded font-bold bg-slate-800 text-rose-400 hover:bg-rose-950 border border-slate-700 text-xs" title="Eraser Mode"><i class="fa-solid fa-eraser"></i></button>
+                    </div>
+
+                    <!-- Ring Stamper Quick Actions -->
+                    <div class="flex items-center gap-1 border-l border-slate-800 pl-2">
+                        <span class="text-[10px] text-slate-400 uppercase font-bold mr-1">Stamp Ring:</span>
+                        <button onclick="stampRing('benzene')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-semibold">Benzene</button>
+                        <button onclick="stampRing('pyridine')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-semibold">Pyridine</button>
+                        <button onclick="stampRing('cyclopentyl')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-semibold">Cyclopentyl</button>
+                        <button onclick="stampRing('morpholine')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-semibold">Morpholine</button>
+                    </div>
+
+                    <!-- Canvas Clean Actions -->
+                    <div class="flex items-center gap-1">
+                        <button onclick="clearCanvasSketcher()" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px]">Clear</button>
+                        <button onclick="centerCanvasSketcher()" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px]">Center</button>
+                    </div>
+                </div>
+
+                <!-- Functional Group Quick Attach Palette -->
+                <div class="flex items-center gap-1.5 overflow-x-auto py-1 text-xs text-slate-400">
+                    <span class="text-[10px] uppercase font-bold text-slate-500 whitespace-nowrap"><i class="fa-solid fa-tags mr-1"></i>Attach Substituent:</span>
+                    <button onclick="attachSubstituent('OH')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-rose-300 border border-slate-800 whitespace-nowrap text-[11px]">-OH</button>
+                    <button onclick="attachSubstituent('COOH')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-800 whitespace-nowrap text-[11px]">-COOH</button>
+                    <button onclick="attachSubstituent('NH2')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-blue-300 border border-slate-800 whitespace-nowrap text-[11px]">-NH2</button>
+                    <button onclick="attachSubstituent('CN')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-slate-800 whitespace-nowrap text-[11px]">-C#N</button>
+                    <button onclick="attachSubstituent('CF3')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-emerald-300 border border-slate-800 whitespace-nowrap text-[11px]">-CF3</button>
+                    <button onclick="attachSubstituent('OCH3')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-purple-300 border border-slate-800 whitespace-nowrap text-[11px]">-OCH3</button>
+                    <button onclick="attachSubstituent('NO2')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-rose-400 border border-slate-800 whitespace-nowrap text-[11px]">-NO2</button>
+                    <button onclick="attachSubstituent('SO2NH2')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-800 whitespace-nowrap text-[11px]">-SO2NH2</button>
+                </div>
+
+                <!-- Canvas Drawing Surface -->
+                <div class="relative w-full flex-1 flex items-center justify-center bg-slate-950 rounded-xl border border-slate-800 overflow-hidden min-h-[310px]">
+                    <canvas id="sketcher-canvas" width="760" height="310" class="cursor-crosshair block mx-auto"></canvas>
+                    <div id="canvas-hint" class="absolute bottom-2 left-3 text-[10px] text-slate-500 pointer-events-none flex items-center gap-1">
+                        <i class="fa-solid fa-mouse-pointer text-cyan-400"></i> Click to add atom • Click + drag to draw bond • Click on atom to select/attach
+                    </div>
+                </div>
+
+                <!-- Live Generated SMILES Display -->
+                <div class="flex items-center justify-between p-2.5 bg-slate-900/90 rounded-xl border border-slate-800 text-xs">
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <span class="text-slate-400 font-semibold">Live SMILES:</span>
+                        <span id="sketcher-live-smiles" class="font-mono text-cyan-300 font-bold truncate max-w-[420px]" title="c1ccccc1">c1ccccc1</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="sketcher-status-badge" class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-bold">
+                            <i class="fa-solid fa-check mr-1"></i>Valid Scaffold
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+
+
+            <!-- MODE 2: 1-CLICK CLINICAL SCAFFOLDS -->
+            <div id="sketcher-view-scaffolds" class="hidden flex-1 flex flex-col space-y-3 overflow-y-auto max-h-[460px] pr-1">
+                <p class="text-xs text-slate-400">Select any standard medicinal chemistry scaffold to immediately load and evaluate:</p>
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                    <button onclick="loadTemplateScaffold('Benzene', 'c1ccccc1')" class="p-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-left transition space-y-1">
+                        <div class="font-bold text-white text-xs">Benzene</div>
+                        <div class="text-[10px] text-cyan-400">c1ccccc1</div>
+                        <span class="text-[9px] text-slate-500">Aromatic Core</span>
+                    </button>
+                    <button onclick="loadTemplateScaffold('Phenol', 'c1ccccc1O')" class="p-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-left transition space-y-1">
+                        <div class="font-bold text-white text-xs">Phenol</div>
+                        <div class="text-[10px] text-cyan-400">c1ccccc1O</div>
+                        <span class="text-[9px] text-slate-500">Hydroxyl Pharmacophore</span>
+                    </button>
+                    <button onclick="loadTemplateScaffold('Pyridine', 'c1ccncc1')" class="p-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-left transition space-y-1">
+                        <div class="font-bold text-white text-xs">Pyridine</div>
+                        <div class="text-[10px] text-cyan-400">c1ccncc1</div>
+                        <span class="text-[9px] text-slate-500">Aza-Heterocycle</span>
+                    </button>
+                    <button onclick="loadTemplateScaffold('Pyrimidine', 'c1cncnc1')" class="p-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-left transition space-y-1">
+                        <div class="font-bold text-white text-xs">Pyrimidine</div>
+                        <div class="text-[10px] text-cyan-400">c1cncnc1</div>
+                        <span class="text-[9px] text-slate-500">Nucleobase Bioisostere</span>
+                    </button>
+                    <button onclick="loadTemplateScaffold('Indole', 'c1ccc2[nH]ccc2c1')" class="p-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-left transition space-y-1">
+                        <div class="font-bold text-white text-xs">Indole</div>
+                        <div class="text-[10px] text-cyan-400">c1ccc2[nH]ccc2c1</div>
+                        <span class="text-[9px] text-slate-500">Serotonin / Tryptophan</span>
+                    </button>
+                    <button onclick="loadTemplateScaffold('Quinoline', 'c1ccc2ncccc2c1')" class="p-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-left transition space-y-1">
+                        <div class="font-bold text-white text-xs">Quinoline</div>
+                        <div class="text-[10px] text-cyan-400">c1ccc2ncccc2c1</div>
+                        <span class="text-[9px] text-slate-500">Bicyclic Alkaloid</span>
+                    </button>
+                    <button onclick="loadTemplateScaffold('Morpholine', 'C1COCCN1')" class="p-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-left transition space-y-1">
+                        <div class="font-bold text-white text-xs">Morpholine</div>
+                        <div class="text-[10px] text-cyan-400">C1COCCN1</div>
+                        <span class="text-[9px] text-slate-500">Solubilizing Tail</span>
+                    </button>
+                    <button onclick="loadTemplateScaffold('Piperazine', 'C1CNCCN1')" class="p-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-left transition space-y-1">
+                        <div class="font-bold text-white text-xs">Piperazine</div>
+                        <div class="text-[10px] text-cyan-400">C1CNCCN1</div>
+                        <span class="text-[9px] text-slate-500">Ionizable Diamine</span>
+                    </button>
+                    <button onclick="loadTemplateScaffold('Thiophene', 'c1ccsc1')" class="p-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-left transition space-y-1">
+                        <div class="font-bold text-white text-xs">Thiophene</div>
+                        <div class="text-[10px] text-cyan-400">c1ccsc1</div>
+                        <span class="text-[9px] text-slate-500">Sulfur Bioisostere</span>
+                    </button>
+                    <button onclick="loadTemplateScaffold('Benzoic Acid', 'c1ccccc1C(=O)O')" class="p-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-left transition space-y-1">
+                        <div class="font-bold text-white text-xs">Benzoic Acid</div>
+                        <div class="text-[10px] text-cyan-400">c1ccccc1C(=O)O</div>
+                        <span class="text-[9px] text-slate-500">Acidic Headgroup</span>
+                    </button>
+                    <button onclick="loadTemplateScaffold('Aniline', 'c1ccccc1N')" class="p-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-left transition space-y-1">
+                        <div class="font-bold text-white text-xs">Aniline</div>
+                        <div class="text-[10px] text-cyan-400">c1ccccc1N</div>
+                        <span class="text-[9px] text-slate-500">Arylamine Pharmacophore</span>
+                    </button>
+                    <button onclick="loadTemplateScaffold('Acetaminophen Core', 'CC(=O)Nc1ccc(O)cc1')" class="p-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-left transition space-y-1">
+                        <div class="font-bold text-white text-xs">Paracetamol Core</div>
+                        <div class="text-[10px] text-cyan-400">CC(=O)Nc1ccc(O)cc1</div>
+                        <span class="text-[9px] text-slate-500">Analgesic Reference</span>
+                    </button>
                 </div>
             </div>
 
-            <!-- Modal Action Buttons -->
+
+            <!-- MODE 3: DIRECT SMILES & IUPAC -->
+            <div id="sketcher-view-smiles" class="hidden flex-1 flex flex-col space-y-3">
+                <p class="text-xs text-slate-400">Paste or type any raw chemical SMILES or drug generic name for instant preview:</p>
+                <div class="space-y-2">
+                    <input type="text" id="direct-smiles-input" oninput="previewDirectSmiles()"
+                           placeholder="e.g. CC(=O)Oc1ccccc1C(=O)O or Doxorubicin"
+                           class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-sm focus:border-cyan-500">
+                </div>
+                <div class="flex-1 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-center p-3 min-h-[200px]" id="direct-preview-container">
+                    <span class="text-slate-500 text-xs">Type a structure above to generate live 2D preview</span>
+                </div>
+            </div>
+
+
+            <!-- Modal Footer & Transfer Action -->
             <div class="flex items-center justify-between mt-4 pt-3 border-t border-borderbg">
-                <div class="text-xs text-slate-400">
-                    <i class="fa-solid fa-circle-info text-cyan-400 mr-1"></i>Draw bonds, rings, or heteroatoms, then click Transfer.
+                <div class="text-xs text-slate-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-check text-cyan-400"></i>
+                    <span>Ready for deep in-silico profiling</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button onclick="clearSketcher()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition">
-                        Clear
+                    <button onclick="closeSketcherModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">
+                        Cancel
                     </button>
-                    <button onclick="applyDrawnMolecule()" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-darkbg font-bold rounded-lg text-xs transition shadow-lg flex items-center gap-2">
+                    <button onclick="applyDrawnMolecule()" class="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-darkbg font-bold rounded-xl text-xs transition shadow-lg flex items-center gap-2">
                         <i class="fa-solid fa-check"></i>
-                        <span>Transfer & Analyze</span>
+                        <span>Transfer & Analyze Candidate</span>
                     </button>
                 </div>
             </div>
+
         </div>
     </div>
+
 
     <!-- Top Navigation Header -->
     <header class="sticky top-0 z-40 glass-card border-b border-borderbg bg-darkbg/95">
@@ -184,9 +359,9 @@
 
             <!-- Status & Action Links -->
             <div class="flex items-center space-x-2">
-                <button onclick="openSketcherModal()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 transition flex items-center space-x-1.5">
+                <button onclick="openSketcherModal()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-darkbg shadow-md shadow-cyan-500/20 transition flex items-center space-x-1.5">
                     <i class="fa-solid fa-pen-nib"></i>
-                    <span class="hidden sm:inline">2D Sketcher</span>
+                    <span>2D Sketcher</span>
                 </button>
                 <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center space-x-1.5">
                     <i class="fa-solid fa-code"></i>
@@ -278,7 +453,7 @@
                         <button onclick="loadPreset('Remdesivir', 'Remdesivir')" class="preset-chip px-2.5 py-1 text-xs rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Remdesivir</button>
                         <button onclick="loadPreset('Diazepam', 'Diazepam')" class="preset-chip px-2.5 py-1 text-xs rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Diazepam</button>
                         <button onclick="switchTab('pharmacopeia')" class="px-2.5 py-1 text-xs rounded-lg bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 font-semibold transition">
-                            <i class="fa-solid fa-list mr-1"></i>All 80+ Drugs
+                            <i class="fa-solid fa-list mr-1"></i>All 100+ Drugs
                         </button>
                     </div>
                 </div>
@@ -560,6 +735,7 @@
                     <button onclick="selectPharmCategory('Antiviral')" class="pharm-cat-btn px-3 py-1 text-xs rounded-lg bg-slate-900 text-slate-400 hover:text-white border border-slate-800 transition">Antivirals</button>
                     <button onclick="selectPharmCategory('Analgesic')" class="pharm-cat-btn px-3 py-1 text-xs rounded-lg bg-slate-900 text-slate-400 hover:text-white border border-slate-800 transition">Analgesics & NSAIDs</button>
                     <button onclick="selectPharmCategory('Metabolic')" class="pharm-cat-btn px-3 py-1 text-xs rounded-lg bg-slate-900 text-slate-400 hover:text-white border border-slate-800 transition">Metabolism & Endocrine</button>
+                    <button onclick="selectPharmCategory('Immunology')" class="pharm-cat-btn px-3 py-1 text-xs rounded-lg bg-slate-900 text-slate-400 hover:text-white border border-slate-800 transition">Immunology</button>
                 </div>
 
                 <!-- Pharmacopeia Cards Grid -->
@@ -585,7 +761,7 @@
                             <span>AI Lead Optimization & Bioisostere Generation</span>
                         </h2>
                         <p class="text-xs text-slate-400 mt-1">
-                            Applies 8 classical medicinal chemistry transformation rules to fix pharmacophore liabilities and generate superior structural analogs.
+                            Applies 13 classical medicinal chemistry transformation rules (Tetrazoles, Amides, Fluorination, Aza-bioisosteres, Morpholine tails) to generate superior structural analogs.
                         </p>
                     </div>
                     <button onclick="runLeadOptimization()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-purple-600/20 transition flex items-center gap-2">
@@ -821,23 +997,634 @@
         let isRotating = true;
         let current3DStyle = "stick";
         let radarChartInstance = null;
-        let jsmeApplet = null;
         let pharmacopeiaData = [];
         let activePharmCat = "ALL";
 
-        // JSME Initialization Callback (Invoked automatically by JSME script)
-        function jsmeOnLoad() {
-            try {
-                jsmeApplet = new JSApplet.JSME("jsme-container", "580px", "360px", {
-                    "options": "oldlook,star,nocanonize"
-                });
-            } catch (e) {
-                console.warn("JSME initialization fallback:", e);
-                document.getElementById("sketcher-fallback").classList.remove("hidden");
+        // =================================================================
+        // CANVAS CHEMICAL SKETCHER ENGINE
+        // =================================================================
+        let sketcherAtoms = [];
+        let sketcherBonds = [];
+        let sketcherSelectedAtomId = null;
+        let sketcherHoverAtomId = null;
+        let sketcherActiveAtomSymbol = "C";
+        let sketcherActiveBondOrder = 1;
+        let sketcherIsEraseMode = false;
+        let sketcherDraggingAtom = null;
+        let sketcherLiveSmiles = "c1ccccc1";
+        let canvasDebounceTimer = null;
+
+        const ATOM_COLORS = {
+            "C": "#94a3b8",
+            "N": "#60a5fa",
+            "O": "#f87171",
+            "S": "#facc15",
+            "F": "#34d399",
+            "Cl": "#4ade80",
+            "Br": "#fb923c",
+            "P": "#c084fc"
+        };
+
+        function openSketcherModal() {
+            const modal = document.getElementById("sketcher-modal");
+            modal.classList.remove("hidden");
+            setTimeout(() => {
+                initCanvasSketcher();
+            }, 60);
+        }
+
+        function closeSketcherModal() {
+            document.getElementById("sketcher-modal").classList.add("hidden");
+        }
+
+        function setSketcherMode(mode) {
+            document.getElementById("sketcher-view-canvas").classList.add("hidden");
+            document.getElementById("sketcher-view-scaffolds").classList.add("hidden");
+            document.getElementById("sketcher-view-smiles").classList.add("hidden");
+
+            document.querySelectorAll(".sketcher-tab-btn").forEach(b => {
+                b.classList.remove("bg-cyan-950", "text-cyan-300", "border-cyan-800");
+                b.classList.add("bg-slate-900", "text-slate-400", "border-slate-800");
+            });
+
+            const activeBtn = document.getElementById("tab-btn-" + mode);
+            if (activeBtn) {
+                activeBtn.classList.remove("bg-slate-900", "text-slate-400", "border-slate-800");
+                activeBtn.classList.add("bg-cyan-950", "text-cyan-300", "border-cyan-800");
+            }
+
+            const activeView = document.getElementById("sketcher-view-" + mode);
+            if (activeView) activeView.classList.remove("hidden");
+
+            if (mode === "canvas") {
+                renderSketcherCanvas();
             }
         }
 
-        // Initialize Application
+        function setAtomTool(symbol) {
+            sketcherActiveAtomSymbol = symbol;
+            sketcherIsEraseMode = false;
+            document.querySelectorAll(".atom-tool-btn").forEach(b => {
+                b.className = "atom-tool-btn px-2 py-1 rounded font-bold bg-slate-800 border border-slate-700 text-xs";
+            });
+            const btn = document.getElementById("atom-btn-" + symbol);
+            if (btn) {
+                btn.className = "atom-tool-btn px-2 py-1 rounded font-bold bg-cyan-500 text-darkbg shadow text-xs";
+            }
+            const eraseBtn = document.getElementById("tool-btn-erase");
+            if (eraseBtn) eraseBtn.classList.remove("bg-rose-950", "border-rose-700");
+        }
+
+        function setBondOrder(order) {
+            sketcherActiveBondOrder = order;
+            sketcherIsEraseMode = false;
+            document.querySelectorAll(".bond-tool-btn").forEach(b => {
+                b.className = "bond-tool-btn px-2.5 py-1 rounded font-bold bg-slate-800 text-slate-300 border border-slate-700 text-xs";
+            });
+            const btn = document.getElementById("bond-btn-" + order);
+            if (btn) {
+                btn.className = "bond-tool-btn px-2.5 py-1 rounded font-bold bg-cyan-950 text-cyan-300 border border-cyan-800 text-xs";
+            }
+            const eraseBtn = document.getElementById("tool-btn-erase");
+            if (eraseBtn) eraseBtn.classList.remove("bg-rose-950", "border-rose-700");
+        }
+
+        function setEraseTool() {
+            sketcherIsEraseMode = true;
+            const eraseBtn = document.getElementById("tool-btn-erase");
+            if (eraseBtn) eraseBtn.classList.add("bg-rose-950", "border-rose-700");
+            document.querySelectorAll(".atom-tool-btn").forEach(b => {
+                b.className = "atom-tool-btn px-2 py-1 rounded font-bold bg-slate-800 border border-slate-700 text-xs";
+            });
+        }
+
+        function initCanvasSketcher() {
+            const canvas = document.getElementById("sketcher-canvas");
+            if (!canvas) return;
+
+            // Load default Benzene ring if canvas is empty
+            if (sketcherAtoms.length === 0) {
+                stampRing("benzene");
+            } else {
+                renderSketcherCanvas();
+            }
+
+            // Bind Canvas Events
+            canvas.onmousedown = onCanvasMouseDown;
+            canvas.onmousemove = onCanvasMouseMove;
+            canvas.onmouseup = onCanvasMouseUp;
+        }
+
+        function stampRing(type) {
+            const canvas = document.getElementById("sketcher-canvas");
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            sketcherAtoms = [];
+            sketcherBonds = [];
+            sketcherSelectedAtomId = null;
+
+            if (type === "benzene" || type === "pyridine") {
+                const R = 54;
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i * 60 - 30) * Math.PI / 180;
+                    const sym = (type === "pyridine" && i === 0) ? "N" : "C";
+                    sketcherAtoms.push({
+                        id: i,
+                        x: cx + R * Math.cos(angle),
+                        y: cy + R * Math.sin(angle),
+                        symbol: sym
+                    });
+                }
+                for (let i = 0; i < 6; i++) {
+                    const next = (i + 1) % 6;
+                    const order = (i % 2 === 0) ? 2 : 1;
+                    sketcherBonds.push({ source: i, target: next, order: order });
+                }
+            } else if (type === "cyclopentyl") {
+                const R = 50;
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i * 72 - 90) * Math.PI / 180;
+                    sketcherAtoms.push({
+                        id: i,
+                        x: cx + R * Math.cos(angle),
+                        y: cy + R * Math.sin(angle),
+                        symbol: "C"
+                    });
+                }
+                for (let i = 0; i < 5; i++) {
+                    sketcherBonds.push({ source: i, target: (i + 1) % 5, order: 1 });
+                }
+            } else if (type === "morpholine") {
+                const R = 54;
+                const symbols = ["N", "C", "C", "O", "C", "C"];
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i * 60 - 30) * Math.PI / 180;
+                    sketcherAtoms.push({
+                        id: i,
+                        x: cx + R * Math.cos(angle),
+                        y: cy + R * Math.sin(angle),
+                        symbol: symbols[i]
+                    });
+                }
+                for (let i = 0; i < 6; i++) {
+                    sketcherBonds.push({ source: i, target: (i + 1) % 6, order: 1 });
+                }
+            }
+
+            renderSketcherCanvas();
+            scheduleSyncSMILES();
+        }
+
+        function attachSubstituent(subType) {
+            if (sketcherSelectedAtomId === null) {
+                // If nothing selected, attach to atom 0
+                if (sketcherAtoms.length > 0) sketcherSelectedAtomId = sketcherAtoms[0].id;
+                else return;
+            }
+
+            const parentAtom = sketcherAtoms.find(a => a.id === sketcherSelectedAtomId);
+            if (!parentAtom) return;
+
+            const nextId = sketcherAtoms.length > 0 ? Math.max(...sketcherAtoms.map(a => a.id)) + 1 : 0;
+            const dx = 42;
+            const dy = -42;
+
+            if (subType === "OH") {
+                sketcherAtoms.push({ id: nextId, x: parentAtom.x + dx, y: parentAtom.y + dy, symbol: "O" });
+                sketcherBonds.push({ source: parentAtom.id, target: nextId, order: 1 });
+            } else if (subType === "NH2") {
+                sketcherAtoms.push({ id: nextId, x: parentAtom.x + dx, y: parentAtom.y + dy, symbol: "N" });
+                sketcherBonds.push({ source: parentAtom.id, target: nextId, order: 1 });
+            } else if (subType === "CN") {
+                sketcherAtoms.push({ id: nextId, x: parentAtom.x + dx, y: parentAtom.y + dy, symbol: "C" });
+                sketcherAtoms.push({ id: nextId + 1, x: parentAtom.x + dx * 2, y: parentAtom.y + dy * 2, symbol: "N" });
+                sketcherBonds.push({ source: parentAtom.id, target: nextId, order: 1 });
+                sketcherBonds.push({ source: nextId, target: nextId + 1, order: 3 });
+            } else if (subType === "COOH") {
+                sketcherAtoms.push({ id: nextId, x: parentAtom.x + dx, y: parentAtom.y + dy, symbol: "C" });
+                sketcherAtoms.push({ id: nextId + 1, x: parentAtom.x + dx * 1.5, y: parentAtom.y + dy * 0.5, symbol: "O" });
+                sketcherAtoms.push({ id: nextId + 2, x: parentAtom.x + dx * 0.5, y: parentAtom.y + dy * 1.5, symbol: "O" });
+                sketcherBonds.push({ source: parentAtom.id, target: nextId, order: 1 });
+                sketcherBonds.push({ source: nextId, target: nextId + 1, order: 2 });
+                sketcherBonds.push({ source: nextId, target: nextId + 2, order: 1 });
+            } else if (subType === "CF3") {
+                sketcherAtoms.push({ id: nextId, x: parentAtom.x + dx, y: parentAtom.y + dy, symbol: "C" });
+                sketcherAtoms.push({ id: nextId + 1, x: parentAtom.x + dx + 25, y: parentAtom.y + dy - 15, symbol: "F" });
+                sketcherAtoms.push({ id: nextId + 2, x: parentAtom.x + dx + 15, y: parentAtom.y + dy + 25, symbol: "F" });
+                sketcherAtoms.push({ id: nextId + 3, x: parentAtom.x + dx - 20, y: parentAtom.y + dy + 25, symbol: "F" });
+                sketcherBonds.push({ source: parentAtom.id, target: nextId, order: 1 });
+                sketcherBonds.push({ source: nextId, target: nextId + 1, order: 1 });
+                sketcherBonds.push({ source: nextId, target: nextId + 2, order: 1 });
+                sketcherBonds.push({ source: nextId, target: nextId + 3, order: 1 });
+            } else if (subType === "OCH3") {
+                sketcherAtoms.push({ id: nextId, x: parentAtom.x + dx, y: parentAtom.y + dy, symbol: "O" });
+                sketcherAtoms.push({ id: nextId + 1, x: parentAtom.x + dx * 1.8, y: parentAtom.y + dy * 1.8, symbol: "C" });
+                sketcherBonds.push({ source: parentAtom.id, target: nextId, order: 1 });
+                sketcherBonds.push({ source: nextId, target: nextId + 1, order: 1 });
+            } else if (subType === "NO2") {
+                sketcherAtoms.push({ id: nextId, x: parentAtom.x + dx, y: parentAtom.y + dy, symbol: "N" });
+                sketcherAtoms.push({ id: nextId + 1, x: parentAtom.x + dx * 1.5, y: parentAtom.y + dy * 0.5, symbol: "O" });
+                sketcherAtoms.push({ id: nextId + 2, x: parentAtom.x + dx * 0.5, y: parentAtom.y + dy * 1.5, symbol: "O" });
+                sketcherBonds.push({ source: parentAtom.id, target: nextId, order: 1 });
+                sketcherBonds.push({ source: nextId, target: nextId + 1, order: 2 });
+                sketcherBonds.push({ source: nextId, target: nextId + 2, order: 1 });
+            } else if (subType === "SO2NH2") {
+                sketcherAtoms.push({ id: nextId, x: parentAtom.x + dx, y: parentAtom.y + dy, symbol: "S" });
+                sketcherAtoms.push({ id: nextId + 1, x: parentAtom.x + dx * 1.5, y: parentAtom.y + dy * 0.5, symbol: "O" });
+                sketcherAtoms.push({ id: nextId + 2, x: parentAtom.x + dx * 0.5, y: parentAtom.y + dy * 1.5, symbol: "O" });
+                sketcherAtoms.push({ id: nextId + 3, x: parentAtom.x + dx * 1.8, y: parentAtom.y + dy * 1.8, symbol: "N" });
+                sketcherBonds.push({ source: parentAtom.id, target: nextId, order: 1 });
+                sketcherBonds.push({ source: nextId, target: nextId + 1, order: 2 });
+                sketcherBonds.push({ source: nextId, target: nextId + 2, order: 2 });
+                sketcherBonds.push({ source: nextId, target: nextId + 3, order: 1 });
+            }
+
+            renderSketcherCanvas();
+            scheduleSyncSMILES();
+        }
+
+        function clearCanvasSketcher() {
+            sketcherAtoms = [];
+            sketcherBonds = [];
+            sketcherSelectedAtomId = null;
+            sketcherLiveSmiles = "";
+            document.getElementById("sketcher-live-smiles").textContent = "--";
+            renderSketcherCanvas();
+        }
+
+        function centerCanvasSketcher() {
+            if (sketcherAtoms.length === 0) return;
+            const canvas = document.getElementById("sketcher-canvas");
+            const avgX = sketcherAtoms.reduce((acc, a) => acc + a.x, 0) / sketcherAtoms.length;
+            const avgY = sketcherAtoms.reduce((acc, a) => acc + a.y, 0) / sketcherAtoms.length;
+            const offsetX = (canvas.width / 2) - avgX;
+            const offsetY = (canvas.height / 2) - avgY;
+
+            sketcherAtoms.forEach(a => {
+                a.x += offsetX;
+                a.y += offsetY;
+            });
+            renderSketcherCanvas();
+        }
+
+        function renderSketcherCanvas() {
+            const canvas = document.getElementById("sketcher-canvas");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+
+            // Clear Background
+            ctx.fillStyle = "#020617";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Subtle Grid
+            ctx.strokeStyle = "rgba(30, 41, 59, 0.4)";
+            ctx.lineWidth = 1;
+            const gridSize = 30;
+            for (let x = 0; x < canvas.width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Draw Bonds
+            sketcherBonds.forEach(bond => {
+                const a1 = sketcherAtoms.find(a => a.id === bond.source);
+                const a2 = sketcherAtoms.find(a => a.id === bond.target);
+                if (!a1 || !a2) return;
+
+                const dx = a2.x - a1.x;
+                const dy = a2.y - a1.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist === 0) return;
+
+                const ux = dx / dist;
+                const uy = dy / dist;
+                const px = -uy;
+                const py = ux;
+
+                ctx.strokeStyle = "#cbd5e1";
+                ctx.lineWidth = 2.5;
+
+                if (bond.order === 1) {
+                    ctx.beginPath();
+                    ctx.moveTo(a1.x, a1.y);
+                    ctx.lineTo(a2.x, a2.y);
+                    ctx.stroke();
+                } else if (bond.order === 2) {
+                    const offset = 3.5;
+                    ctx.beginPath();
+                    ctx.moveTo(a1.x + px * offset, a1.y + py * offset);
+                    ctx.lineTo(a2.x + px * offset, a2.y + py * offset);
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.moveTo(a1.x - px * offset, a1.y - py * offset);
+                    ctx.lineTo(a2.x - px * offset, a2.y - py * offset);
+                    ctx.stroke();
+                } else if (bond.order === 3) {
+                    const offset = 4.5;
+                    ctx.beginPath();
+                    ctx.moveTo(a1.x, a1.y);
+                    ctx.lineTo(a2.x, a2.y);
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.moveTo(a1.x + px * offset, a1.y + py * offset);
+                    ctx.lineTo(a2.x + px * offset, a2.y + py * offset);
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.moveTo(a1.x - px * offset, a1.y - py * offset);
+                    ctx.lineTo(a2.x - px * offset, a2.y - py * offset);
+                    ctx.stroke();
+                }
+            });
+
+            // Draw Atoms
+            sketcherAtoms.forEach(atom => {
+                const isSelected = (sketcherSelectedAtomId === atom.id);
+                const isHovered = (sketcherHoverAtomId === atom.id);
+                const color = ATOM_COLORS[atom.symbol] || "#94a3b8";
+
+                // Halo for selection
+                if (isSelected) {
+                    ctx.beginPath();
+                    ctx.arc(atom.x, atom.y, 16, 0, Math.PI * 2);
+                    ctx.fillStyle = "rgba(6, 182, 212, 0.35)";
+                    ctx.fill();
+                    ctx.strokeStyle = "#06b6d4";
+                    ctx.lineWidth = 1.8;
+                    ctx.stroke();
+                } else if (isHovered) {
+                    ctx.beginPath();
+                    ctx.arc(atom.x, atom.y, 14, 0, Math.PI * 2);
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+                    ctx.fill();
+                }
+
+                // Atom Circle
+                ctx.beginPath();
+                ctx.arc(atom.x, atom.y, 10, 0, Math.PI * 2);
+                ctx.fillStyle = "#0f172a";
+                ctx.fill();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Atom Label
+                ctx.fillStyle = color;
+                ctx.font = "bold 11px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(atom.symbol, atom.x, atom.y + 0.5);
+            });
+        }
+
+        function getCanvasMousePos(e) {
+            const canvas = document.getElementById("sketcher-canvas");
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        function findAtomAtPos(x, y, radius = 18) {
+            return sketcherAtoms.find(a => Math.hypot(a.x - x, a.y - y) <= radius);
+        }
+
+        function onCanvasMouseDown(e) {
+            const pos = getCanvasMousePos(e);
+            const clickedAtom = findAtomAtPos(pos.x, pos.y);
+
+            if (sketcherIsEraseMode) {
+                if (clickedAtom) {
+                    sketcherAtoms = sketcherAtoms.filter(a => a.id !== clickedAtom.id);
+                    sketcherBonds = sketcherBonds.filter(b => b.source !== clickedAtom.id && b.target !== clickedAtom.id);
+                    sketcherSelectedAtomId = null;
+                    renderSketcherCanvas();
+                    scheduleSyncSMILES();
+                }
+                return;
+            }
+
+            if (clickedAtom) {
+                // If user clicks an existing atom, change symbol or select
+                if (clickedAtom.symbol !== sketcherActiveAtomSymbol) {
+                    clickedAtom.symbol = sketcherActiveAtomSymbol;
+                }
+                sketcherSelectedAtomId = clickedAtom.id;
+                sketcherDraggingAtom = clickedAtom;
+                renderSketcherCanvas();
+                scheduleSyncSMILES();
+            } else {
+                // Click on empty space: place new atom
+                const nextId = sketcherAtoms.length > 0 ? Math.max(...sketcherAtoms.map(a => a.id)) + 1 : 0;
+                const newAtom = {
+                    id: nextId,
+                    x: pos.x,
+                    y: pos.y,
+                    symbol: sketcherActiveAtomSymbol
+                };
+                sketcherAtoms.push(newAtom);
+
+                // If previous atom selected, connect with bond
+                if (sketcherSelectedAtomId !== null) {
+                    const prev = sketcherAtoms.find(a => a.id === sketcherSelectedAtomId);
+                    if (prev) {
+                        sketcherBonds.push({
+                            source: prev.id,
+                            target: newAtom.id,
+                            order: sketcherActiveBondOrder
+                        });
+                    }
+                }
+
+                sketcherSelectedAtomId = newAtom.id;
+                renderSketcherCanvas();
+                scheduleSyncSMILES();
+            }
+        }
+
+        function onCanvasMouseMove(e) {
+            const pos = getCanvasMousePos(e);
+            const hover = findAtomAtPos(pos.x, pos.y);
+            const newHoverId = hover ? hover.id : null;
+
+            if (newHoverId !== sketcherHoverAtomId) {
+                sketcherHoverAtomId = newHoverId;
+                renderSketcherCanvas();
+            }
+
+            // Draw drag guide line
+            if (sketcherDraggingAtom) {
+                renderSketcherCanvas();
+                const canvas = document.getElementById("sketcher-canvas");
+                const ctx = canvas.getContext("2d");
+                ctx.strokeStyle = "rgba(6, 182, 212, 0.7)";
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(sketcherDraggingAtom.x, sketcherDraggingAtom.y);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+
+        function onCanvasMouseUp(e) {
+            if (!sketcherDraggingAtom) return;
+            const pos = getCanvasMousePos(e);
+            const targetAtom = findAtomAtPos(pos.x, pos.y);
+
+            if (targetAtom && targetAtom.id !== sketcherDraggingAtom.id) {
+                // Connect bond between draggingAtom and targetAtom
+                const existing = sketcherBonds.find(b =>
+                    (b.source === sketcherDraggingAtom.id && b.target === targetAtom.id) ||
+                    (b.source === targetAtom.id && b.target === sketcherDraggingAtom.id)
+                );
+
+                if (existing) {
+                    existing.order = (existing.order % 3) + 1; // Cycle 1 -> 2 -> 3 -> 1
+                } else {
+                    sketcherBonds.push({
+                        source: sketcherDraggingAtom.id,
+                        target: targetAtom.id,
+                        order: sketcherActiveBondOrder
+                    });
+                }
+            } else if (!targetAtom && Math.hypot(pos.x - sketcherDraggingAtom.x, pos.y - sketcherDraggingAtom.y) > 28) {
+                // Dragged into open space: create new atom and connect
+                const nextId = Math.max(...sketcherAtoms.map(a => a.id)) + 1;
+                const newAtom = {
+                    id: nextId,
+                    x: pos.x,
+                    y: pos.y,
+                    symbol: sketcherActiveAtomSymbol
+                };
+                sketcherAtoms.push(newAtom);
+                sketcherBonds.push({
+                    source: sketcherDraggingAtom.id,
+                    target: newAtom.id,
+                    order: sketcherActiveBondOrder
+                });
+                sketcherSelectedAtomId = newAtom.id;
+            }
+
+            sketcherDraggingAtom = null;
+            renderSketcherCanvas();
+            scheduleSyncSMILES();
+        }
+
+        function scheduleSyncSMILES() {
+            clearTimeout(canvasDebounceTimer);
+            canvasDebounceTimer = setTimeout(syncCanvasToSmiles, 180);
+        }
+
+        async function syncCanvasToSmiles() {
+            if (sketcherAtoms.length === 0) {
+                sketcherLiveSmiles = "";
+                document.getElementById("sketcher-live-smiles").textContent = "--";
+                return;
+            }
+
+            try {
+                const res = await fetch("/api/v1/molecule/graph-to-smiles", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        atoms: sketcherAtoms,
+                        bonds: sketcherBonds
+                    })
+                });
+                const json = await res.json();
+                if (json.success && json.smiles) {
+                    sketcherLiveSmiles = json.smiles;
+                    document.getElementById("sketcher-live-smiles").textContent = json.smiles;
+                    document.getElementById("sketcher-live-smiles").title = json.smiles;
+                    const badge = document.getElementById("sketcher-status-badge");
+                    if (badge) {
+                        badge.className = "px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-bold";
+                        badge.innerHTML = `<i class="fa-solid fa-check mr-1"></i>Valid Scaffold`;
+                    }
+                }
+            } catch (err) {
+                console.warn("Sketcher sync error:", err);
+            }
+        }
+
+        function loadTemplateScaffold(name, smiles) {
+            sketcherLiveSmiles = smiles;
+            document.getElementById("sketcher-live-smiles").textContent = smiles;
+            setSketcherMode("canvas");
+            // If template corresponds to ring, stamp it
+            if (name === "Benzene") stampRing("benzene");
+            else if (name === "Pyridine") stampRing("pyridine");
+            else if (name === "Morpholine") stampRing("morpholine");
+            else {
+                // Load directly
+                applyDrawnMolecule();
+            }
+            showToast(`Loaded ${name} scaffold!`, "success");
+        }
+
+        async function previewDirectSmiles() {
+            const smi = document.getElementById("direct-smiles-input").value.trim();
+            const container = document.getElementById("direct-preview-container");
+            if (!smi) {
+                container.innerHTML = `<span class="text-slate-500 text-xs">Type a structure above to generate live 2D preview</span>`;
+                return;
+            }
+
+            try {
+                const res = await fetch("/api/v1/molecule/svg-2d", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ smiles: smi })
+                });
+                const json = await res.json();
+                if (json.success && json.svg) {
+                    container.innerHTML = json.svg;
+                    sketcherLiveSmiles = json.resolved_smiles || smi;
+                } else {
+                    container.innerHTML = `<span class="text-rose-400 text-xs">Invalid chemical query</span>`;
+                }
+            } catch (e) {
+                container.innerHTML = `<span class="text-rose-400 text-xs">Could not render preview</span>`;
+            }
+        }
+
+        function applyDrawnMolecule() {
+            let smi = sketcherLiveSmiles.trim();
+            const directInput = document.getElementById("direct-smiles-input").value.trim();
+            if (!smi && directInput) {
+                smi = directInput;
+            }
+
+            if (!smi) {
+                showToast("Please draw or select a structure first.", "error");
+                return;
+            }
+
+            closeSketcherModal();
+            document.getElementById("smiles-input").value = smi;
+            currentCandidateName = "Drawn Chemical Candidate";
+            switchTab('studio');
+            runStudioPrediction();
+            showToast("Transferred drawn scaffold to Studio!", "success");
+        }
+
+
+        // =================================================================
+        // APPLICATION INITIALIZATION
+        // =================================================================
         document.addEventListener("DOMContentLoaded", () => {
             init3DViewer();
             initRadarChart();
@@ -861,7 +1648,7 @@
                 activeNav.classList.add("text-cyan-400", "bg-cyan-950/60", "border", "border-cyan-800/80");
             }
 
-            if (tabId === 'optimizer' && !document.getElementById('analogs-container').children.length) {
+            if (tabId === 'optimizer') {
                 runLeadOptimization();
             } else if (tabId === 'screening' && !document.getElementById('screening-tbody').children.length) {
                 runBatchScreening();
@@ -874,48 +1661,6 @@
             currentCandidateName = name;
             switchTab('studio');
             runStudioPrediction();
-        }
-
-        // Sketcher Modal Controls
-        function openSketcherModal() {
-            document.getElementById("sketcher-modal").classList.remove("hidden");
-        }
-
-        function closeSketcherModal() {
-            document.getElementById("sketcher-modal").classList.add("hidden");
-        }
-
-        function clearSketcher() {
-            if (jsmeApplet) {
-                jsmeApplet.reset();
-            }
-            const fallbackInput = document.getElementById("sketcher-manual-smiles");
-            if (fallbackInput) fallbackInput.value = "";
-        }
-
-        function applyDrawnMolecule() {
-            let smi = "";
-            if (jsmeApplet) {
-                smi = jsmeApplet.smiles();
-            }
-            if (!smi) {
-                const fallbackInput = document.getElementById("sketcher-manual-smiles");
-                if (fallbackInput && fallbackInput.value.trim()) {
-                    smi = fallbackInput.value.trim();
-                }
-            }
-
-            if (!smi) {
-                showToast("Please draw a structure or enter a SMILES string first.", "error");
-                return;
-            }
-
-            closeSketcherModal();
-            document.getElementById("smiles-input").value = smi;
-            currentCandidateName = "Drawn Chemical Scaffold";
-            switchTab('studio');
-            runStudioPrediction();
-            showToast("Transferred drawn structure to Studio!", "success");
         }
 
         // 3Dmol.js Viewer Initialization
