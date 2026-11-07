@@ -6,3 +6,4 @@ Write-Host "Swagger API Docs at:  http://localhost:8000/docs" -ForegroundColor G
 Write-Host "=========================================================================" -ForegroundColor Cyan
 
 & ".\venv\Scripts\python.exe" -m uvicorn api:app --host 0.0.0.0 --port 8000 --reload
+

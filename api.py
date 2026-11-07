@@ -20,6 +20,7 @@ from src.admet_engine import predict_full_admet
 from src.lead_optimizer import generate_lead_analogs
 from src.explainability_engine import explain_molecule_features, generate_attribution_map_base64
 from src.dossier_generator import generate_dossier_html
+from src.drug_resolver import resolve_compound_query, CLINICAL_PHARMACOPEIA
 
 
 app = FastAPI(
@@ -54,6 +55,9 @@ if os.path.exists("results"):
 # ---------------------------------------------------------------------------
 class SmilesRequest(BaseModel):
     smiles: str = Field(..., example="CC(=O)Oc1ccccc1C(=O)O", description="Valid chemical SMILES string")
+
+class SearchQueryRequest(BaseModel):
+    query: str = Field(..., example="Doxorubicin", description="Drug generic name (e.g. Doxorubicin, Metformin, Lipitor) or SMILES")
 
 class BatchSmilesRequest(BaseModel):
     molecules: List[dict] = Field(
@@ -122,16 +126,70 @@ def health_check():
 
 
 # ---------------------------------------------------------------------------
+# PHARMACOPEIA & COMPOUND SEARCH ENDPOINTS
+# ---------------------------------------------------------------------------
+@app.post("/api/v1/molecule/resolve-query", tags=["Search"])
+def resolve_query_endpoint(payload: SearchQueryRequest):
+    """
+    Intelligently resolves any drug name (e.g. Doxorubicin, Lipitor, Metformin) or raw chemical SMILES.
+    """
+    result = resolve_compound_query(payload.query)
+    if not result.get("success"):
+        raise HTTPException(status_code=404, detail=result.get("error", "Compound not found."))
+    return result
+
+
+@app.get("/api/v1/pharmacopeia/catalog", tags=["Search"])
+def get_pharmacopeia_catalog_endpoint():
+    """
+    Returns clinical drug catalog grouped by therapeutic category for the Medical Reference Directory.
+    """
+    catalog = {}
+    for name, data in CLINICAL_PHARMACOPEIA.items():
+        cat = data.get("class", "Other Therapeutics").split(" / ")[0]
+        if cat not in catalog:
+            catalog[cat] = []
+        catalog[cat].append({
+            "name": name.capitalize(),
+            "smiles": data["smiles"],
+            "class": data.get("class"),
+            "brand": data.get("brand")
+        })
+    return {"success": True, "total_drugs": len(CLINICAL_PHARMACOPEIA), "catalog": catalog}
+
+
+def _ensure_smiles(input_str: str) -> str:
+    """
+    Validates input as SMILES; if invalid, queries Clinical Pharmacopeia and PubChem.
+    """
+    smi = (input_str or "").strip()
+    if not smi:
+        raise ValueError("Empty chemical query.")
+    try:
+        mol = Chem.MolFromSmiles(smi)
+        if mol is not None:
+            return Chem.MolToSmiles(mol)
+    except Exception:
+        pass
+    resolved = resolve_compound_query(smi)
+    if resolved.get("success"):
+        return resolved["smiles"]
+    raise ValueError(f"Could not parse valid chemical SMILES or resolve drug name '{input_str}'")
+
+
+# ---------------------------------------------------------------------------
 # PREDICTION & ADMET ENDPOINTS
 # ---------------------------------------------------------------------------
 @app.post("/api/v1/predict/admet", tags=["Predictions"])
 def predict_admet_endpoint(payload: SmilesRequest):
     """
     Predicts complete Physicochemical, Pharmacokinetic, and ADMET profile for a single molecule.
+    Accepts chemical SMILES or recognized drug/generic names.
     """
     try:
-        results = predict_full_admet(payload.smiles)
-        return {"success": True, "data": results}
+        smi = _ensure_smiles(payload.smiles)
+        results = predict_full_admet(smi)
+        return {"success": True, "data": results, "resolved_smiles": smi}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -142,7 +200,8 @@ def get_3d_conformer(payload: SmilesRequest):
     Generates an optimized 3D molecular conformer (MMFF94 force field) for 3Dmol.js WebGL visualization.
     """
     try:
-        mol = Chem.MolFromSmiles(payload.smiles.strip())
+        smi = _ensure_smiles(payload.smiles)
+        mol = Chem.MolFromSmiles(smi)
         if mol is None:
             raise ValueError("Invalid SMILES string.")
         mol_h = Chem.AddHs(mol)
@@ -154,7 +213,7 @@ def get_3d_conformer(payload: SmilesRequest):
         except Exception:
             pass
         mol_block = Chem.MolToMolBlock(mol_h)
-        return {"success": True, "mol_block": mol_block, "atoms": mol.GetNumAtoms()}
+        return {"success": True, "mol_block": mol_block, "atoms": mol.GetNumAtoms(), "resolved_smiles": smi}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -165,7 +224,8 @@ def get_2d_svg(payload: SmilesRequest):
     Renders high-contrast 2D chemical structure in vector SVG format.
     """
     try:
-        mol = Chem.MolFromSmiles(payload.smiles.strip())
+        smi = _ensure_smiles(payload.smiles)
+        mol = Chem.MolFromSmiles(smi)
         if mol is None:
             raise ValueError("Invalid SMILES string.")
         drawer = rdMolDraw2D.MolDraw2DSVG(380, 260)
@@ -174,7 +234,7 @@ def get_2d_svg(payload: SmilesRequest):
         drawer.DrawMolecule(mol)
         drawer.FinishDrawing()
         svg = drawer.GetDrawingText()
-        return {"success": True, "svg": svg}
+        return {"success": True, "svg": svg, "resolved_smiles": smi}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -186,8 +246,9 @@ def optimize_lead_endpoint(payload: SmilesRequest, max_analogs: int = Query(6, g
     and returns delta improvements over parent candidate.
     """
     try:
-        results = generate_lead_analogs(payload.smiles, max_analogs=max_analogs)
-        return {"success": True, "data": results}
+        smi = _ensure_smiles(payload.smiles)
+        results = generate_lead_analogs(smi, max_analogs=max_analogs)
+        return {"success": True, "data": results, "resolved_smiles": smi}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -198,7 +259,8 @@ def explain_attribution_endpoint(payload: SmilesRequest):
     Computes atom-level attribution weights and returns a base64 contour heatmap.
     """
     try:
-        mol = Chem.MolFromSmiles(payload.smiles.strip())
+        smi = _ensure_smiles(payload.smiles)
+        mol = Chem.MolFromSmiles(smi)
         if mol is None:
             raise ValueError("Invalid chemical SMILES.")
 
@@ -208,7 +270,8 @@ def explain_attribution_endpoint(payload: SmilesRequest):
         return {
             "success": True,
             "explanation": explanation,
-            "heatmap_data_uri": heatmap_b64
+            "heatmap_data_uri": heatmap_b64,
+            "resolved_smiles": smi
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -218,6 +281,7 @@ def explain_attribution_endpoint(payload: SmilesRequest):
 def batch_screening_endpoint(payload: BatchSmilesRequest):
     """
     Batch virtual high-throughput screening for up to 100 compounds.
+    Accepts chemical SMILES or recognized drug/generic names.
     """
     if len(payload.molecules) > 100:
         raise HTTPException(status_code=400, detail="Batch size limited to 100 molecules per request.")
@@ -225,12 +289,26 @@ def batch_screening_endpoint(payload: BatchSmilesRequest):
     screened_results = []
     for item in payload.molecules:
         cmpd_id = item.get("id", "Unknown")
-        smi = item.get("smiles", "")
+        smi = item.get("smiles", "").strip()
         try:
-            admet = predict_full_admet(smi)
+            # Check if input is a valid SMILES string directly
+            mol = Chem.MolFromSmiles(smi) if smi else None
+            actual_smiles = smi
+            if mol is None:
+                # Resolve via Clinical Pharmacopeia / PubChem
+                query_str = smi or cmpd_id
+                resolved = resolve_compound_query(query_str)
+                if resolved.get("success"):
+                    actual_smiles = resolved["smiles"]
+                    if cmpd_id in ("Unknown", "", query_str):
+                        cmpd_id = resolved.get("name", cmpd_id)
+                else:
+                    raise ValueError(f"Could not resolve structure for '{query_str}'")
+
+            admet = predict_full_admet(actual_smiles)
             screened_results.append({
                 "id": cmpd_id,
-                "smiles": smi,
+                "smiles": actual_smiles,
                 "success": True,
                 "formula": admet["Formula"],
                 "logS": admet["Predictions"]["Solubility_LogS"],
@@ -265,9 +343,10 @@ def download_dossier(payload: SmilesRequest, name: Optional[str] = "Candidate"):
     Generates and downloads a complete, standalone Preclinical Regulatory Dossier HTML.
     """
     try:
+        smi = _ensure_smiles(payload.smiles)
         clean_name = name or "Candidate"
-        admet = predict_full_admet(payload.smiles.strip())
-        html_content = generate_dossier_html(clean_name, payload.smiles.strip(), admet)
+        admet = predict_full_admet(smi)
+        html_content = generate_dossier_html(clean_name, smi, admet)
         return Response(
             content=html_content,
             media_type="text/html",
