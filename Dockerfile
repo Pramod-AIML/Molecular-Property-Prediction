@@ -35,4 +35,4 @@ COPY . /app/
 EXPOSE 8501 8000
 
 # Default command launches Real-Time Web Platform (dynamically binds to $PORT if set by cloud host)
-CMD ["sh", "-c", "uvicorn api:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["python", "api.py"]
