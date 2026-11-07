@@ -55,6 +55,8 @@ def get_filter_catalogs():
     return _PAINS_CATALOG, _BRENK_CATALOG
 
 
+_PREDICTION_CACHE: Dict[str, Any] = {}
+
 def load_model(path: str):
     if path not in _MODELS_CACHE:
         if os.path.exists(path):
@@ -66,6 +68,17 @@ def load_model(path: str):
         else:
             _MODELS_CACHE[path] = None
     return _MODELS_CACHE[path]
+
+
+def preload_all_models():
+    """
+    Pre-warms all 5 ML models and filter catalogs into memory.
+    Eliminates first-request cold-start latency.
+    """
+    for p in [SOLUBILITY_MODEL_PATH, LIPO_MODEL_PATH, BBBP_MODEL_PATH, CLINTOX_MODEL_PATH, P53_MODEL_PATH]:
+        load_model(p)
+    get_filter_catalogs()
+    get_fingerprint_generator()
 
 
 # ---------------------------------------------------------------------------
@@ -256,16 +269,23 @@ def detect_structural_alerts(mol: Chem.Mol) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 def predict_full_admet(smiles: str) -> Dict[str, Any]:
     """
-    Full End-to-End In Silico ADMET Characterization for a SMILES string.
+    Full End-to-End In Silico ADMET Characterization for a SMILES string with high-speed caching.
     """
     if not isinstance(smiles, str) or not smiles.strip():
         raise ValueError("Invalid SMILES: Input string is empty.")
 
-    mol = Chem.MolFromSmiles(smiles.strip())
+    clean_smi = smiles.strip()
+    if clean_smi in _PREDICTION_CACHE:
+        return _PREDICTION_CACHE[clean_smi]
+
+    mol = Chem.MolFromSmiles(clean_smi)
     if mol is None:
         raise ValueError(f"RDKit Chem.MolFromSmiles failed to parse: '{smiles}'. Check chemical valence/syntax.")
 
     canonical_smiles = Chem.MolToSmiles(mol)
+    if canonical_smiles in _PREDICTION_CACHE:
+        return _PREDICTION_CACHE[canonical_smiles]
+
     formula = Chem.rdMolDescriptors.CalcMolFormula(mol)
 
     # 1. Compute Features
@@ -368,7 +388,7 @@ def predict_full_admet(smiles: str) -> Dict[str, Any]:
         1
     )
 
-    return {
+    result = {
         "Canonical_SMILES": canonical_smiles,
         "Formula": formula,
         "Descriptors": desc,
@@ -399,3 +419,9 @@ def predict_full_admet(smiles: str) -> Dict[str, Any]:
         "Structural_Alerts": alerts,
         "Overall_Candidate_Score": overall_candidate_score
     }
+
+    if len(_PREDICTION_CACHE) > 1000:
+        _PREDICTION_CACHE.clear()
+    _PREDICTION_CACHE[clean_smi] = result
+    _PREDICTION_CACHE[canonical_smiles] = result
+    return result
