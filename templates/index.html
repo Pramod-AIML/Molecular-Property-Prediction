@@ -93,6 +93,9 @@
 </head>
 <body class="min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-white">
 
+    <!-- Floating Toast Notification System -->
+    <div id="toast-container" class="fixed top-20 right-6 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
     <!-- Top Navigation Header -->
     <header class="sticky top-0 z-50 glass-card border-b border-borderbg bg-darkbg/90">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -179,6 +182,7 @@
                             <i class="fa-solid fa-atom"></i>
                         </div>
                         <input type="text" id="smiles-input" value="CC(=O)Oc1ccccc1C(=O)O"
+                               onkeydown="if(event.key==='Enter') runStudioPrediction()"
                                placeholder="e.g. CC(=O)Oc1ccccc1C(=O)O (Aspirin)"
                                class="w-full pl-10 pr-28 py-3.5 bg-slate-900/90 border border-slate-700 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 rounded-xl text-white font-mono text-sm tracking-wide transition placeholder-slate-500">
                         <div class="absolute inset-y-0 right-0 pr-2 flex items-center gap-1.5">
@@ -816,18 +820,46 @@
             });
         }
 
-        function updateRadarChart(admet) {
-            if (!radarChartInstance) return;
-            const desc = admet.Descriptors;
-            const preds = admet.Predictions;
+        // Toast Notification System
+        function showToast(message, type = "error") {
+            const container = document.getElementById("toast-container");
+            if (!container) return;
+            const toast = document.createElement("div");
+            toast.className = `pointer-events-auto flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-semibold shadow-xl border transition-all duration-300 transform translate-y-2 opacity-0 ${
+                type === "error"
+                    ? "bg-rose-950/90 text-rose-300 border-rose-800 shadow-rose-950/50"
+                    : "bg-emerald-950/90 text-emerald-300 border-emerald-800 shadow-emerald-950/50"
+            }`;
+            toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-circle-exclamation text-rose-400' : 'fa-circle-check text-emerald-400'}"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.remove("translate-y-2", "opacity-0");
+            }, 10);
+            setTimeout(() => {
+                toast.classList.add("translate-y-2", "opacity-0");
+                setTimeout(() => toast.remove(), 350);
+            }, 4000);
+        }
 
-            // Normalized 0-1 metrics for radar representation
-            const lipoNorm = Math.min(Math.max((preds.Lipophilicity_LogD + 2) / 6.0, 0.1), 1.0);
-            const mwNorm = Math.min(Math.max(desc.Molecular_Weight / 600.0, 0.1), 1.0);
-            const polarNorm = Math.min(Math.max(desc.TPSA / 160.0, 0.1), 1.0);
-            const solNorm = Math.min(Math.max((preds.Solubility_LogS + 8) / 8.0, 0.1), 1.0);
-            const satNorm = Math.min(Math.max(desc.Fraction_CSP3, 0.1), 1.0);
-            const flexNorm = Math.min(Math.max(desc.Num_Rotatable_Bonds / 12.0, 0.1), 1.0);
+        function updateRadarChart(admet) {
+            if (!radarChartInstance || !admet) return;
+            const desc = admet.Descriptors || {};
+            const preds = admet.Predictions || {};
+
+            const lipoVal = (preds.Lipophilicity_LogD !== undefined) ? Number(preds.Lipophilicity_LogD) : 0;
+            const mwVal = (desc.Molecular_Weight !== undefined) ? Number(desc.Molecular_Weight) : 300;
+            const tpsaVal = (desc.TPSA !== undefined) ? Number(desc.TPSA) : 60;
+            const solVal = (preds.Solubility_LogS !== undefined) ? Number(preds.Solubility_LogS) : -3;
+            const satVal = (desc.Fraction_CSP3 !== undefined) ? Number(desc.Fraction_CSP3) : 0.4;
+            const rotbRaw = (desc.Rotatable_Bonds !== undefined) ? desc.Rotatable_Bonds : (desc.Num_Rotatable_Bonds !== undefined ? desc.Num_Rotatable_Bonds : 3);
+            const rotbVal = Number(rotbRaw) || 0;
+
+            const lipoNorm = Math.min(Math.max((lipoVal + 2) / 6.0, 0.1), 1.0);
+            const mwNorm = Math.min(Math.max(mwVal / 600.0, 0.1), 1.0);
+            const polarNorm = Math.min(Math.max(tpsaVal / 160.0, 0.1), 1.0);
+            const solNorm = Math.min(Math.max((solVal + 8) / 8.0, 0.1), 1.0);
+            const satNorm = Math.min(Math.max(satVal, 0.1), 1.0);
+            const flexNorm = Math.min(Math.max(rotbVal / 12.0, 0.1), 1.0);
 
             radarChartInstance.data.datasets[0].data = [lipoNorm, mwNorm, polarNorm, solNorm, satNorm, flexNorm];
             radarChartInstance.update();
@@ -891,7 +923,7 @@
                 }
 
             } catch (err) {
-                alert("Error analyzing molecule: " + err.message);
+                showToast("Error analyzing molecule: " + err.message, "error");
             } finally {
                 btnSpinner.classList.add("hidden");
                 btnText.textContent = "Analyze";
@@ -900,61 +932,88 @@
 
         // Render ADMET UI elements
         function renderAdmetUI(data) {
-            const preds = data.Predictions;
-            const desc = data.Descriptors;
-            const dl = data.Drug_Likeness;
-            const alerts = data.Structural_Alerts;
-            const pk = data.Pharmacokinetics;
+            if (!data) return;
+            const preds = data.Predictions || {};
+            const desc = data.Descriptors || {};
+            const dl = data.Drug_Likeness || {};
+            const alerts = data.Structural_Alerts || {};
+            const pk = data.Pharmacokinetics || {};
 
             // KPIs
-            document.getElementById("kpi-score").textContent = data.Overall_Candidate_Score;
+            const scoreVal = (data.Overall_Candidate_Score !== undefined) ? data.Overall_Candidate_Score : "--";
+            document.getElementById("kpi-score").textContent = scoreVal;
             const scoreBar = document.getElementById("kpi-score-bar");
-            scoreBar.style.width = data.Overall_Candidate_Score + "%";
-            document.getElementById("kpi-score-badge").textContent = data.Overall_Candidate_Score >= 70 ? "Favorable" : "Moderate";
+            if (scoreBar) scoreBar.style.width = (data.Overall_Candidate_Score || 0) + "%";
+            const scoreBadge = document.getElementById("kpi-score-badge");
+            if (scoreBadge) scoreBadge.textContent = (data.Overall_Candidate_Score >= 70) ? "Favorable" : "Moderate";
 
-            document.getElementById("kpi-logs").textContent = preds.Solubility_LogS.toFixed(2);
-            document.getElementById("kpi-logs").style.color = preds.Solubility_Color;
-            document.getElementById("kpi-logs-class").textContent = preds.Solubility_Class;
-            document.getElementById("kpi-logs-mg").textContent = preds.Solubility_mg_mL.toFixed(2) + " mg/mL";
+            const logsVal = (preds.Solubility_LogS !== undefined) ? Number(preds.Solubility_LogS).toFixed(2) : "--";
+            document.getElementById("kpi-logs").textContent = logsVal;
+            if (preds.Solubility_Color) document.getElementById("kpi-logs").style.color = preds.Solubility_Color;
+            if (preds.Solubility_Class) document.getElementById("kpi-logs-class").textContent = preds.Solubility_Class;
+            const logsMg = (preds.Solubility_mg_mL !== undefined) ? Number(preds.Solubility_mg_mL).toFixed(2) + " mg/mL" : "--";
+            document.getElementById("kpi-logs-mg").textContent = logsMg;
 
-            document.getElementById("kpi-logd").textContent = preds.Lipophilicity_LogD.toFixed(2);
+            const logdVal = (preds.Lipophilicity_LogD !== undefined) ? Number(preds.Lipophilicity_LogD).toFixed(2) : "--";
+            document.getElementById("kpi-logd").textContent = logdVal;
 
             const clintoxBadge = document.getElementById("kpi-clintox-badge");
-            const isHighRisk = preds.ClinTox_Risk.includes("High");
-            clintoxBadge.textContent = isHighRisk ? "High Risk" : "Safe / Tolerated";
-            clintoxBadge.className = isHighRisk ?
-                "text-sm font-bold px-2.5 py-1 rounded-md bg-rose-950 text-rose-400 border border-rose-800" :
-                "text-sm font-bold px-2.5 py-1 rounded-md bg-emerald-950 text-emerald-400 border border-emerald-800";
-            document.getElementById("kpi-clintox-prob").textContent = "Probability: " + (preds.ClinTox_Probability * 100).toFixed(1) + "%";
+            const isHighRisk = preds.ClinTox_Risk ? preds.ClinTox_Risk.includes("High") : false;
+            if (clintoxBadge) {
+                clintoxBadge.textContent = isHighRisk ? "High Risk" : "Safe / Tolerated";
+                clintoxBadge.className = isHighRisk ?
+                    "text-sm font-bold px-2.5 py-1 rounded-md bg-rose-950 text-rose-400 border border-rose-800" :
+                    "text-sm font-bold px-2.5 py-1 rounded-md bg-emerald-950 text-emerald-400 border border-emerald-800";
+            }
+            const clintoxProb = (preds.ClinTox_Probability !== undefined) ? (Number(preds.ClinTox_Probability) * 100).toFixed(1) + "%" : "--%";
+            document.getElementById("kpi-clintox-prob").textContent = "Probability: " + clintoxProb;
 
             const p53Badge = document.getElementById("kpi-p53-badge");
-            p53Badge.textContent = preds.p53_Genotoxicity.includes("Positive") ? "p53 Mutagenic" : "p53 Negative";
+            if (p53Badge && preds.p53_Genotoxicity) {
+                p53Badge.textContent = preds.p53_Genotoxicity.includes("Positive") ? "p53 Mutagenic" : "p53 Negative";
+            }
 
             // 2D Card Metadata
-            document.getElementById("mol-formula").textContent = "Formula: " + data.Formula;
-            document.getElementById("meta-mw").textContent = desc.Molecular_Weight.toFixed(1);
-            document.getElementById("meta-logp").textContent = desc.MolLogP.toFixed(2);
-            document.getElementById("meta-tpsa").textContent = desc.TPSA.toFixed(1);
-            document.getElementById("meta-qed").textContent = dl.QED.toFixed(3);
+            document.getElementById("mol-formula").textContent = "Formula: " + (data.Formula || "--");
+            const mwVal = (desc.Molecular_Weight !== undefined) ? Number(desc.Molecular_Weight).toFixed(1) : "--";
+            document.getElementById("meta-mw").textContent = mwVal;
+
+            // LogP safely handles either 'LogP' or 'MolLogP'
+            const logpRaw = (desc.LogP !== undefined) ? desc.LogP : desc.MolLogP;
+            const logpVal = (logpRaw !== undefined) ? Number(logpRaw).toFixed(2) : "--";
+            document.getElementById("meta-logp").textContent = logpVal;
+
+            const tpsaVal = (desc.TPSA !== undefined) ? Number(desc.TPSA).toFixed(1) : "--";
+            document.getElementById("meta-tpsa").textContent = tpsaVal;
+
+            const qedVal = (dl.QED !== undefined) ? Number(dl.QED).toFixed(3) : "--";
+            document.getElementById("meta-qed").textContent = qedVal;
 
             // Medicinal Chemistry Rules
-            document.getElementById("rule-lipinski").textContent = dl.Lipinski_Pass ? "Pass (0 Violations)" : "Violation";
-            document.getElementById("rule-lipinski").className = dl.Lipinski_Pass ? "font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400" : "font-bold px-2 py-0.5 rounded bg-rose-950 text-rose-400";
+            if (dl) {
+                document.getElementById("rule-lipinski").textContent = dl.Lipinski_Pass ? "Pass (0 Violations)" : "Violation";
+                document.getElementById("rule-lipinski").className = dl.Lipinski_Pass ? "font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400" : "font-bold px-2 py-0.5 rounded bg-rose-950 text-rose-400";
 
-            document.getElementById("rule-veber").textContent = dl.Veber_Pass ? "Pass" : "Violation";
-            document.getElementById("rule-veber").className = dl.Veber_Pass ? "font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400" : "font-bold px-2 py-0.5 rounded bg-rose-950 text-rose-400";
+                document.getElementById("rule-veber").textContent = dl.Veber_Pass ? "Pass" : "Violation";
+                document.getElementById("rule-veber").className = dl.Veber_Pass ? "font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400" : "font-bold px-2 py-0.5 rounded bg-rose-950 text-rose-400";
 
-            document.getElementById("rule-ghose").textContent = dl.Ghose_Pass ? "Pass" : "Violation";
-            document.getElementById("rule-cns").textContent = dl.CNS_MPO_Score.toFixed(1) + " / 6.0";
+                document.getElementById("rule-ghose").textContent = dl.Ghose_Pass ? "Pass" : "Violation";
+                const cnsVal = (dl.CNS_MPO_Score !== undefined) ? Number(dl.CNS_MPO_Score).toFixed(1) : "--";
+                document.getElementById("rule-cns").textContent = cnsVal + " / 6.0";
+            }
 
-            document.getElementById("rule-pains").textContent = alerts.PAINS_Safe ? "Zero Alerts" : alerts.PAINS_Alerts_Count + " Alerts";
-            document.getElementById("rule-pains").className = alerts.PAINS_Safe ? "font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400" : "font-bold px-2 py-0.5 rounded bg-amber-950 text-amber-400";
+            if (alerts) {
+                document.getElementById("rule-pains").textContent = alerts.PAINS_Safe ? "Zero Alerts" : alerts.PAINS_Alerts_Count + " Alerts";
+                document.getElementById("rule-pains").className = alerts.PAINS_Safe ? "font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400" : "font-bold px-2 py-0.5 rounded bg-amber-950 text-amber-400";
+            }
 
             // Pharmacokinetics
-            document.getElementById("pk-bbbp").textContent = preds.BBBP_Penetration;
-            document.getElementById("pk-caco2").textContent = pk.Caco2_Permeability;
-            document.getElementById("pk-hia").textContent = pk.Human_Intestinal_Absorption;
-            document.getElementById("pk-ppb").textContent = pk.Plasma_Protein_Binding;
+            if (pk && preds) {
+                document.getElementById("pk-bbbp").textContent = preds.BBBP_Penetration || "--";
+                document.getElementById("pk-caco2").textContent = pk.Caco2_Permeability || "--";
+                document.getElementById("pk-hia").textContent = pk.Human_Intestinal_Absorption || "--";
+                document.getElementById("pk-ppb").textContent = pk.Plasma_Protein_Binding || "--";
+            }
 
             updateRadarChart(data);
         }
@@ -1068,19 +1127,34 @@
                 lastBatchResults.forEach(r => {
                     const tr = document.createElement("tr");
                     tr.className = "hover:bg-slate-900/50 transition cursor-pointer";
-                    tr.onclick = () => loadPreset(r.id, r.smiles);
-                    tr.innerHTML = `
-                        <td class="p-3 font-bold text-white">${r.id}</td>
-                        <td class="p-3 text-slate-400 max-w-[140px] truncate" title="${r.smiles}">${r.smiles}</td>
-                        <td class="p-3 text-slate-300">${r.formula}</td>
-                        <td class="p-3 font-bold ${r.logS >= -4.0 ? 'text-emerald-400' : 'text-amber-400'}">${r.logS.toFixed(2)}</td>
-                        <td class="p-3 text-cyan-400 font-bold">${r.logD.toFixed(2)}</td>
-                        <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${r.clintox.includes('High') ? 'bg-rose-950 text-rose-400' : 'bg-emerald-950 text-emerald-400'}">${r.clintox.includes('High') ? 'High Risk' : 'Safe'}</span></td>
-                        <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] ${r.p53_tox.includes('Positive') ? 'bg-rose-950 text-rose-400' : 'bg-slate-800 text-slate-300'}">${r.p53_tox.includes('Positive') ? 'Mutagenic' : 'Negative'}</span></td>
-                        <td class="p-3 text-slate-300">${r.bbbp.includes('Non') ? 'BBBP-' : 'BBBP+'}</td>
-                        <td class="p-3 font-bold text-emerald-400">${r.qed.toFixed(2)}</td>
-                        <td class="p-3 font-bold text-white">${r.overall_score}</td>
-                    `;
+                    if (r.success) {
+                        tr.onclick = () => loadPreset(r.id, r.smiles);
+                        const logSVal = (r.logS !== undefined) ? Number(r.logS).toFixed(2) : "--";
+                        const logDVal = (r.logD !== undefined) ? Number(r.logD).toFixed(2) : "--";
+                        const qedVal = (r.qed !== undefined) ? Number(r.qed).toFixed(2) : "--";
+                        const scoreVal = (r.overall_score !== undefined) ? r.overall_score : "--";
+                        const isSafe = r.clintox && !r.clintox.includes("High");
+                        const isP53Neg = r.p53_tox && !r.p53_tox.includes("Positive");
+
+                        tr.innerHTML = `
+                            <td class="p-3 font-bold text-white">${r.id}</td>
+                            <td class="p-3 text-slate-400 max-w-[140px] truncate" title="${r.smiles}">${r.smiles}</td>
+                            <td class="p-3 text-slate-300">${r.formula || '--'}</td>
+                            <td class="p-3 font-bold ${(r.logS !== undefined && r.logS >= -4.0) ? 'text-emerald-400' : 'text-amber-400'}">${logSVal}</td>
+                            <td class="p-3 text-cyan-400 font-bold">${logDVal}</td>
+                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${isSafe ? 'bg-emerald-950 text-emerald-400' : 'bg-rose-950 text-rose-400'}">${isSafe ? 'Safe' : 'High Risk'}</span></td>
+                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] ${isP53Neg ? 'bg-slate-800 text-slate-300' : 'bg-rose-950 text-rose-400'}">${isP53Neg ? 'Negative' : 'Mutagenic'}</span></td>
+                            <td class="p-3 text-slate-300">${r.bbbp ? (r.bbbp.includes('Non') ? 'BBBP-' : 'BBBP+') : '--'}</td>
+                            <td class="p-3 font-bold text-emerald-400">${qedVal}</td>
+                            <td class="p-3 font-bold text-white">${scoreVal}</td>
+                        `;
+                    } else {
+                        tr.innerHTML = `
+                            <td class="p-3 font-bold text-rose-400">${r.id}</td>
+                            <td class="p-3 text-slate-500 max-w-[140px] truncate">${r.smiles}</td>
+                            <td colspan="8" class="p-3 text-rose-400 text-xs italic">Failed: ${r.error || 'Invalid SMILES'}</td>
+                        `;
+                    }
                     tbody.appendChild(tr);
                 });
 
@@ -1091,12 +1165,14 @@
 
         function exportBatchCSV() {
             if (!lastBatchResults.length) {
-                alert("Please run batch screening first!");
+                showToast("Please run batch screening first!", "error");
                 return;
             }
             let csv = "ID,SMILES,Formula,LogS,LogD,ClinTox,p53_Tox,BBBP,QED,Overall_Score\n";
             lastBatchResults.forEach(r => {
-                csv += `"${r.id}","${r.smiles}","${r.formula}",${r.logS},${r.logD},"${r.clintox}","${r.p53_tox}","${r.bbbp}",${r.qed},${r.overall_score}\n`;
+                if (r.success) {
+                    csv += `"${r.id}","${r.smiles}","${r.formula}",${r.logS},${r.logD},"${r.clintox}","${r.p53_tox}","${r.bbbp}",${r.qed},${r.overall_score}\n`;
+                }
             });
             const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
             const url = URL.createObjectURL(blob);
@@ -1104,6 +1180,7 @@
             a.href = url;
             a.download = "vHTS_Batch_Screening_Results.csv";
             a.click();
+            showToast("Exported batch results to CSV!", "success");
         }
 
         // Preclinical Dossier Downloader
@@ -1125,8 +1202,9 @@
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
+                showToast("Downloaded Preclinical Dossier successfully!", "success");
             } catch (err) {
-                alert("Failed to download dossier: " + err.message);
+                showToast("Failed to download dossier: " + err.message, "error");
             } finally {
                 btn.innerHTML = `<i class="fa-solid fa-file-pdf"></i> Download Preclinical Dossier`;
             }
@@ -1134,3 +1212,4 @@
     </script>
 </body>
 </html>
+
