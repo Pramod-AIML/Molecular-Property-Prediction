@@ -1,0 +1,2 @@
+Property,Task,Accuracy,ROC_AUC,F1
+p53 Genotoxicity (Tox21),Classification,0.9209748892171344,0.8766606406155844,0.43386243386243384

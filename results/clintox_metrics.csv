@@ -1,0 +1,2 @@
+Property,Task,Accuracy,ROC_AUC,F1
+Clinical Toxicity (ClinTox),Classification,0.8986486486486487,0.9248506967485071,0.4444444444444444

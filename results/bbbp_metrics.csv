@@ -1,0 +1,2 @@
+Property,Task,Accuracy,ROC_AUC,F1
+Blood-Brain Barrier (BBBP),Classification,0.8921568627450981,0.9454293536324786,0.9320987654320988

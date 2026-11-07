@@ -1,0 +1,20 @@
+services:
+  streamlit-dashboard:
+    build: .
+    container_name: molecular-admet-dashboard
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+    command: streamlit run app.py --server.port=8501 --server.address=0.0.0.0
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  fastapi-backend:
+    build: .
+    container_name: molecular-admet-api
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    command: uvicorn api:app --host 0.0.0.0 --port 8000
+    environment:
+      - PYTHONUNBUFFERED=1
