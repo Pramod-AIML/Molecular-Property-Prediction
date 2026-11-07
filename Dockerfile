@@ -9,7 +9,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive \
-    PORT=8501
+    PORT=8000
 
 WORKDIR /app
 
@@ -34,5 +34,5 @@ COPY . /app/
 # Expose ports: 8501 for Streamlit Dashboard, 8000 for FastAPI REST service
 EXPOSE 8501 8000
 
-# Default command launches Streamlit Dashboard (dynamically binds to $PORT if set by cloud host)
-CMD ["sh", "-c", "streamlit run app.py --server.port=${PORT:-8501} --server.address=0.0.0.0"]
+# Default command launches Real-Time Web Platform (dynamically binds to $PORT if set by cloud host)
+CMD ["sh", "-c", "uvicorn api:app --host 0.0.0.0 --port ${PORT:-8000}"]

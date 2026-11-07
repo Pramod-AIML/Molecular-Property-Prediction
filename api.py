@@ -1,6 +1,7 @@
 """
-Molecular Property Prediction & ADMET Intelligence REST API
-Production-grade FastAPI Microservice with OpenAPI / Swagger Documentation.
+Molecular Property Prediction & In-Silico ADMET Intelligence Platform
+Production FastAPI Web Server & Microservice with Interactive Real-Time UI.
+Lead Developer: M. Pramod (24BAI1417)
 """
 
 from typing import List, Optional
@@ -8,27 +9,33 @@ import os
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from rdkit import Chem
+from rdkit.Chem import AllChem
+from rdkit.Chem.Draw import rdMolDraw2D
 
 from src.admet_engine import predict_full_admet
 from src.lead_optimizer import generate_lead_analogs
 from src.explainability_engine import explain_molecule_features, generate_attribution_map_base64
+from src.dossier_generator import generate_dossier_html
 
 
 app = FastAPI(
-    title="Molecular Property Prediction & In-Silico ADMET API",
+    title="Molecular Property Prediction & In-Silico ADMET Platform",
     description=(
-        "Production AI/ML Microservice for Molecular Property Prediction, "
+        "Production AI/ML Web Application and Microservice for Molecular Property Prediction, "
         "Aqueous Solubility (LogS), Multi-Endpoint ADMET Profiling, "
-        "Explainable AI (XAI) Attribution, and Generative Lead Optimization."
+        "Explainable AI (XAI) Attribution, and Generative Lead Optimization. "
+        "Developed by M. Pramod (24BAI1417)."
     ),
     version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
 
-# Enable CORS for cross-origin frontend or dashboard access
+# Enable CORS for cross-origin frontend or external API access
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,6 +43,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount results directory to serve plots and architecture diagrams
+if os.path.exists("results"):
+    app.mount("/results", StaticFiles(directory="results"), name="results")
 
 
 # ---------------------------------------------------------------------------
@@ -57,13 +68,29 @@ class BatchSmilesRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# API ROUTES
+# WEB APPLICATION ROUTE
 # ---------------------------------------------------------------------------
-@app.get("/", tags=["General"])
-def root():
+@app.get("/", response_class=HTMLResponse, tags=["Web Application"])
+def serve_website():
+    """
+    Serves the real-time interactive chemical studio web application.
+    """
+    html_path = os.path.join("templates", "index.html")
+    if os.path.exists(html_path):
+        with open(html_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return "<h1>Molecular Property Prediction Platform</h1><p>Frontend template not found.</p>"
+
+
+@app.get("/api", tags=["General"])
+def api_root():
+    """
+    JSON API capabilities summary.
+    """
     return {
-        "platform": "Molecular Property Prediction & ADMET Intelligence Platform",
+        "platform": "Molecular Property Prediction & In-Silico ADMET Intelligence Platform",
         "version": "2.0.0",
+        "author": "M. Pramod (24BAI1417)",
         "status": "online",
         "documentation": "/docs",
         "capabilities": [
@@ -75,7 +102,9 @@ def root():
             "Pharmacokinetics (Caco-2, HIA, PPB, CYP450)",
             "Medicinal Chemistry Rules (Lipinski, Veber, Ghose, QED, CNS MPO)",
             "Explainable AI (XAI) Contour Heatmaps",
-            "Generative Lead Optimization & Bioisosteres"
+            "Generative Lead Optimization & Bioisosteres",
+            "Interactive 3D WebGL Conformer (MMFF94)",
+            "High-Throughput Batch Virtual Screening"
         ]
     }
 
@@ -92,6 +121,9 @@ def health_check():
     }
 
 
+# ---------------------------------------------------------------------------
+# PREDICTION & ADMET ENDPOINTS
+# ---------------------------------------------------------------------------
 @app.post("/api/v1/predict/admet", tags=["Predictions"])
 def predict_admet_endpoint(payload: SmilesRequest):
     """
@@ -100,6 +132,49 @@ def predict_admet_endpoint(payload: SmilesRequest):
     try:
         results = predict_full_admet(payload.smiles)
         return {"success": True, "data": results}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/v1/molecule/conformer-3d", tags=["Visualization"])
+def get_3d_conformer(payload: SmilesRequest):
+    """
+    Generates an optimized 3D molecular conformer (MMFF94 force field) for 3Dmol.js WebGL visualization.
+    """
+    try:
+        mol = Chem.MolFromSmiles(payload.smiles.strip())
+        if mol is None:
+            raise ValueError("Invalid SMILES string.")
+        mol_h = Chem.AddHs(mol)
+        res = AllChem.EmbedMolecule(mol_h, randomSeed=42)
+        if res != 0:
+            AllChem.EmbedMolecule(mol_h, useRandomCoords=True, randomSeed=42)
+        try:
+            AllChem.MMFFOptimizeMolecule(mol_h, maxIters=200)
+        except Exception:
+            pass
+        mol_block = Chem.MolToMolBlock(mol_h)
+        return {"success": True, "mol_block": mol_block, "atoms": mol.GetNumAtoms()}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/v1/molecule/svg-2d", tags=["Visualization"])
+def get_2d_svg(payload: SmilesRequest):
+    """
+    Renders high-contrast 2D chemical structure in vector SVG format.
+    """
+    try:
+        mol = Chem.MolFromSmiles(payload.smiles.strip())
+        if mol is None:
+            raise ValueError("Invalid SMILES string.")
+        drawer = rdMolDraw2D.MolDraw2DSVG(380, 260)
+        opts = drawer.drawOptions()
+        opts.clearBackground = True
+        drawer.DrawMolecule(mol)
+        drawer.FinishDrawing()
+        svg = drawer.GetDrawingText()
+        return {"success": True, "svg": svg}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -184,6 +259,27 @@ def batch_screening_endpoint(payload: BatchSmilesRequest):
     }
 
 
+@app.post("/api/v1/dossier/download", tags=["Reporting"])
+def download_dossier(payload: SmilesRequest, name: Optional[str] = "Candidate"):
+    """
+    Generates and downloads a complete, standalone Preclinical Regulatory Dossier HTML.
+    """
+    try:
+        clean_name = name or "Candidate"
+        admet = predict_full_admet(payload.smiles.strip())
+        html_content = generate_dossier_html(clean_name, payload.smiles.strip(), admet)
+        return Response(
+            content=html_content,
+            media_type="text/html",
+            headers={"Content-Disposition": f'attachment; filename="{clean_name}_ADMET_Dossier.html"'}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# APPLICATION ENTRYPOINT
+# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("api:app", host="0.0.0.0", port=port)

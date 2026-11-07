@@ -23,7 +23,7 @@ This repository hosts an **End-to-End Enterprise Cheminformatics & In-Silico Dru
 2. **Interactive 2D ChemDraw Studio (JSME)**: Browser-based chemical sketcher allowing researchers to draw molecular structures with mouse and predict ADMET properties with 1 click.
 3. **Local Explainable AI (XAI)**: High-resolution atom-level contour attribution maps revealing exactly which functional groups promote or hinder aqueous solubility.
 4. **Generative Lead Optimizer**: Medicinal chemistry AI applying verified bioisosteric transformations (e.g. Carboxylic Acid $\to$ 1H-Tetrazole, Fluorine scanning, Morpholine solubilization, Cyclopropyl rigidification) to rescue failing drug candidates.
-5. **Dual Production Deployment**: Available both as an interactive **Streamlit Research Dashboard** and a **FastAPI REST Microservice** with automated OpenAPI/Swagger documentation (`/docs`) and containerized **Docker** support.
+5. **Real-Time Web Platform & Microservice**: Interactive Single-Page Web Application served directly via FastAPI (`http://localhost:8000`) featuring real-time 3D WebGL molecular rotation (3Dmol.js), 2D vector topology, live ADMET radar charts, Local Explainable AI contour heatmaps, generative bioisosteres, batch screening, and OpenAPI Swagger (`/docs`). Also includes Streamlit Research Dashboard (`app.py`).
 
 ---
 

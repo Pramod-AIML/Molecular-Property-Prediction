@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Molecular Property Prediction & In-Silico ADMET Intelligence Platform</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#070a13',
+                        cardbg: '#0f172a',
+                        borderbg: '#1e293b',
+                        accentcyan: '#06b6d4',
+                        accentemerald: '#10b981',
+                        accentpurple: '#8b5cf6',
+                        accentrose: '#f43f5e',
+                        accentamber: '#f59e0b'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 3Dmol.js CDN for Interactive 3D Molecular Graphics -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.0.4/3Dmol-min.js"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {
+            background-color: #070a13;
+            color: #e2e8f0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(51, 65, 85, 0.6);
+        }
+        .glass-card:hover {
+            border-color: rgba(6, 182, 212, 0.4);
+        }
+        .glow-cyan {
+            box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.25);
+        }
+        .glow-emerald {
+            box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.25);
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 7px;
+            height: 7px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #070a13;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+        /* Tab transitions */
+        .tab-content {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.25s ease-in-out;
+        }
+        .tab-content.active {
+            display: block;
+            opacity: 1;
+        }
+        /* Spinner */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #06b6d4;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-white">
+
+    <!-- Top Navigation Header -->
+    <header class="sticky top-0 z-50 glass-card border-b border-borderbg bg-darkbg/90">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-400 flex items-center justify-center text-darkbg font-bold shadow-lg shadow-cyan-500/20">
+                    <i class="fa-solid fa-dna text-xl"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="font-bold text-lg tracking-tight text-white">In-Silico ADMET</span>
+                        <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800">Platform 2.0</span>
+                    </div>
+                    <p class="text-xs text-slate-400">Molecular Property Prediction & Generative SAR</p>
+                </div>
+            </div>
+
+            <!-- Tab Buttons -->
+            <nav class="hidden md:flex space-x-1">
+                <button onclick="switchTab('studio')" id="nav-studio" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium transition text-cyan-400 bg-cyan-950/60 border border-cyan-800/80">
+                    <i class="fa-solid fa-flask mr-1.5"></i> Real-Time Studio
+                </button>
+                <button onclick="switchTab('optimizer')" id="nav-optimizer" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800/60">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-1.5 text-purple-400"></i> AI Lead Optimizer
+                </button>
+                <button onclick="switchTab('screening')" id="nav-screening" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800/60">
+                    <i class="fa-solid fa-list-check mr-1.5 text-emerald-400"></i> Batch vHTS
+                </button>
+                <button onclick="switchTab('benchmarks')" id="nav-benchmarks" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800/60">
+                    <i class="fa-solid fa-chart-line mr-1.5 text-amber-400"></i> Benchmarks
+                </button>
+                <button onclick="switchTab('docs')" id="nav-docs" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium transition text-slate-300 hover:text-white hover:bg-slate-800/60">
+                    <i class="fa-solid fa-book mr-1.5 text-blue-400"></i> Docs & Defense
+                </button>
+            </nav>
+
+            <!-- Status & Swagger link -->
+            <div class="flex items-center space-x-3">
+                <div class="hidden lg:flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-800/60 text-emerald-400 text-xs font-medium">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>5 Models Live</span>
+                </div>
+                <a href="/docs" target="_blank" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-code"></i>
+                    <span>API Swagger</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ============================================================== -->
+        <!-- TAB 1: REAL-TIME STUDIO -->
+        <!-- ============================================================== -->
+        <section id="tab-studio" class="tab-content active space-y-6">
+
+            <!-- Hero Chemical Input Bar -->
+            <div class="glass-card rounded-2xl p-6 glow-cyan">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                    <div>
+                        <h1 class="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
+                            <span>Interactive Chemical Candidate Studio</span>
+                            <span class="text-xs px-2.5 py-1 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800 font-normal">Real-Time ML Ingestion</span>
+                        </h1>
+                        <p class="text-sm text-slate-400 mt-1">
+                            Input any chemical SMILES string or select reference therapeutics below to predict physicochemical, solubility, and ADMET profiles instantly.
+                        </p>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex items-center gap-2">
+                        <button onclick="downloadDossier()" id="btn-download-dossier" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-emerald-600/20 transition flex items-center gap-2">
+                            <i class="fa-solid fa-file-pdf"></i>
+                            <span>Download Preclinical Dossier</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Input Input Group -->
+                <div class="space-y-3">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                            <i class="fa-solid fa-atom"></i>
+                        </div>
+                        <input type="text" id="smiles-input" value="CC(=O)Oc1ccccc1C(=O)O"
+                               placeholder="e.g. CC(=O)Oc1ccccc1C(=O)O (Aspirin)"
+                               class="w-full pl-10 pr-28 py-3.5 bg-slate-900/90 border border-slate-700 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 rounded-xl text-white font-mono text-sm tracking-wide transition placeholder-slate-500">
+                        <div class="absolute inset-y-0 right-0 pr-2 flex items-center gap-1.5">
+                            <button onclick="runStudioPrediction()" class="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-darkbg font-bold rounded-lg text-xs transition shadow-md flex items-center gap-1.5">
+                                <span id="btn-predict-spinner" class="spinner hidden"></span>
+                                <span id="btn-predict-text">Analyze</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Preset Drug Chips -->
+                    <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span class="text-xs font-semibold text-slate-400 mr-1"><i class="fa-solid fa-pills mr-1"></i>Presets:</span>
+                        <button onclick="loadPreset('Aspirin', 'CC(=O)Oc1ccccc1C(=O)O')" class="preset-chip px-2.5 py-1 text-xs rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Aspirin</button>
+                        <button onclick="loadPreset('Ibuprofen', 'CC(C)Cc1ccc(cc1)C(C)C(=O)O')" class="preset-chip px-2.5 py-1 text-xs rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Ibuprofen</button>
+                        <button onclick="loadPreset('Paracetamol', 'CC(=O)Nc1ccc(O)cc1')" class="preset-chip px-2.5 py-1 text-xs rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Paracetamol</button>
+                        <button onclick="loadPreset('Caffeine', 'Cn1cnc2c1c(=O)n(c(=O)n2C)C')" class="preset-chip px-2.5 py-1 text-xs rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Caffeine</button>
+                        <button onclick="loadPreset('Nicotine', 'CN1CCC[C@H]1c2cccnc2')" class="preset-chip px-2.5 py-1 text-xs rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Nicotine</button>
+                        <button onclick="loadPreset('Atorvastatin', 'CC(C)c1c(C(=O)Nc2ccccc2)c(-c2ccccc2)c(-c2ccc(F)cc2)n1CC[C@@H](O)C[C@@H](O)CC(=O)O')" class="preset-chip px-2.5 py-1 text-xs rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Atorvastatin</button>
+                        <button onclick="loadPreset('Remdesivir', 'CCC(CC)COC(=O)[C@H](C)N[P@](=O)(OC[C@H]1O[C@](C#N)(c2ccc3n2ncnc3N)[C@H](O)[C@@H]1O)Oc4ccccc4')" class="preset-chip px-2.5 py-1 text-xs rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Remdesivir</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Level KPI Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- Overall Candidate Score -->
+                <div class="glass-card rounded-2xl p-4 relative overflow-hidden">
+                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Candidate Score</div>
+                    <div class="mt-2 flex items-baseline justify-between">
+                        <span id="kpi-score" class="text-3xl font-extrabold text-white">--</span>
+                        <span id="kpi-score-badge" class="px-2 py-0.5 text-xs font-bold rounded-md bg-emerald-950 text-emerald-400 border border-emerald-800">--</span>
+                    </div>
+                    <div class="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+                        <div id="kpi-score-bar" class="bg-gradient-to-r from-emerald-500 to-cyan-400 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Aqueous Solubility -->
+                <div class="glass-card rounded-2xl p-4">
+                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Solubility (LogS)</div>
+                    <div class="mt-2 flex items-baseline justify-between">
+                        <span id="kpi-logs" class="text-3xl font-extrabold text-amber-400">--</span>
+                        <span id="kpi-logs-class" class="text-xs px-2 py-0.5 rounded-md font-semibold bg-amber-950 text-amber-300 border border-amber-800">--</span>
+                    </div>
+                    <div id="kpi-logs-mg" class="text-xs text-slate-400 mt-2 font-mono">-- mg/mL</div>
+                </div>
+
+                <!-- Lipophilicity -->
+                <div class="glass-card rounded-2xl p-4">
+                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Lipophilicity (LogD)</div>
+                    <div class="mt-2 flex items-baseline justify-between">
+                        <span id="kpi-logd" class="text-3xl font-extrabold text-cyan-400">--</span>
+                        <span id="kpi-logd-status" class="text-xs px-2 py-0.5 rounded-md font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800">Physiological</span>
+                    </div>
+                    <div class="text-xs text-slate-400 mt-2">Optimal: 0.0 to 3.0</div>
+                </div>
+
+                <!-- Clinical Toxicity Risk -->
+                <div class="glass-card rounded-2xl p-4">
+                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Clinical Toxicity</div>
+                    <div class="mt-2 flex items-baseline justify-between">
+                        <span id="kpi-clintox-badge" class="text-sm font-bold px-2.5 py-1 rounded-md bg-emerald-950 text-emerald-400 border border-emerald-800">--</span>
+                        <span id="kpi-p53-badge" class="text-xs px-2 py-0.5 rounded-md font-semibold bg-slate-800 text-slate-300">p53 --</span>
+                    </div>
+                    <div id="kpi-clintox-prob" class="text-xs text-slate-400 mt-2">Probability: --%</div>
+                </div>
+            </div>
+
+            <!-- Molecular Visualization Split (2D Vector + 3D Conformer) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- 2D Structure Card -->
+                <div class="glass-card rounded-2xl p-5 flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-3 border-b border-borderbg pb-3">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-shapes text-cyan-400"></i>
+                            <h3 class="font-bold text-white text-base">2D Chemical Topology (Vector SVG)</h3>
+                        </div>
+                        <span id="mol-formula" class="text-xs font-mono px-2.5 py-1 bg-slate-800 rounded-lg text-slate-300">Formula: --</span>
+                    </div>
+
+                    <div id="svg-container" class="w-full h-72 flex items-center justify-center bg-slate-900/60 rounded-xl border border-slate-800/80 p-2 overflow-hidden">
+                        <span class="text-slate-500 text-sm">Rendering molecular structure...</span>
+                    </div>
+
+                    <div class="grid grid-cols-4 gap-2 mt-4 text-center">
+                        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                            <span class="text-[10px] uppercase text-slate-400 block">Mol Wt</span>
+                            <span id="meta-mw" class="font-bold text-sm text-white">--</span>
+                        </div>
+                        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                            <span class="text-[10px] uppercase text-slate-400 block">LogP</span>
+                            <span id="meta-logp" class="font-bold text-sm text-white">--</span>
+                        </div>
+                        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                            <span class="text-[10px] uppercase text-slate-400 block">TPSA</span>
+                            <span id="meta-tpsa" class="font-bold text-sm text-white">--</span>
+                        </div>
+                        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                            <span class="text-[10px] uppercase text-slate-400 block">QED</span>
+                            <span id="meta-qed" class="font-bold text-sm text-emerald-400">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3D Conformer Card (Interactive WebGL 3Dmol.js) -->
+                <div class="glass-card rounded-2xl p-5 flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-3 border-b border-borderbg pb-3">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-cube text-emerald-400"></i>
+                            <h3 class="font-bold text-white text-base">Interactive 3D Molecular Conformer</h3>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="set3DStyle('stick')" class="px-2 py-1 text-[11px] rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Stick</button>
+                            <button onclick="set3DStyle('sphere')" class="px-2 py-1 text-[11px] rounded bg-slate-800 hover:bg-slate-700 text-slate-300">CPK</button>
+                            <button onclick="toggle3DRotation()" id="btn-toggle-rotate" class="px-2 py-1 text-[11px] rounded bg-cyan-950 text-cyan-400 border border-cyan-800"><i class="fa-solid fa-arrows-rotate mr-1"></i>Spin</button>
+                        </div>
+                    </div>
+
+                    <div id="viewer-3d" class="w-full h-72 rounded-xl bg-slate-950 border border-slate-800 relative overflow-hidden">
+                        <div id="viewer-3d-loading" class="absolute inset-0 flex items-center justify-center bg-slate-950/80 z-10 text-slate-400 text-sm">
+                            <div class="spinner mr-2"></div> Generating 3D MMFF94 conformer...
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between mt-4 text-xs text-slate-400">
+                        <span><i class="fa-solid fa-hand-pointer mr-1 text-cyan-400"></i> Left-click + drag to rotate • Right-click to pan • Scroll to zoom</span>
+                        <button onclick="reset3DCamera()" class="text-cyan-400 hover:underline">Reset Camera</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deep ADMET Profiling & Bioavailability Radar Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <!-- Comprehensive ADMET Table (2 Cols) -->
+                <div class="glass-card rounded-2xl p-5 lg:col-span-2 space-y-4">
+                    <div class="flex items-center justify-between border-b border-borderbg pb-3">
+                        <h3 class="font-bold text-white text-base flex items-center gap-2">
+                            <i class="fa-solid fa-shield-halved text-cyan-400"></i>
+                            <span>Multi-Endpoint Pharmacokinetic & Toxicity Profile</span>
+                        </h3>
+                        <span class="text-xs text-slate-400 font-mono">5 Dedicated ML Models</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Left Group: Physicochemical & Medicinal Chemistry -->
+                        <div class="space-y-3">
+                            <h4 class="text-xs font-bold uppercase text-slate-400 tracking-wider">Medicinal Chemistry Rules</h4>
+                            <div class="bg-slate-900/60 rounded-xl p-3 border border-slate-800 space-y-2 text-xs">
+                                <div class="flex justify-between items-center py-1 border-b border-slate-800/80">
+                                    <span class="text-slate-400">Lipinski Rule of 5</span>
+                                    <span id="rule-lipinski" class="font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400">Pass</span>
+                                </div>
+                                <div class="flex justify-between items-center py-1 border-b border-slate-800/80">
+                                    <span class="text-slate-400">Veber Rule (Bioavailability)</span>
+                                    <span id="rule-veber" class="font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400">Pass</span>
+                                </div>
+                                <div class="flex justify-between items-center py-1 border-b border-slate-800/80">
+                                    <span class="text-slate-400">Ghose Filter</span>
+                                    <span id="rule-ghose" class="font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400">Pass</span>
+                                </div>
+                                <div class="flex justify-between items-center py-1 border-b border-slate-800/80">
+                                    <span class="text-slate-400">CNS Multiparameter (MPO)</span>
+                                    <span id="rule-cns" class="font-mono font-bold text-white">-- / 6.0</span>
+                                </div>
+                                <div class="flex justify-between items-center py-1">
+                                    <span class="text-slate-400">PAINS Structural Alerts</span>
+                                    <span id="rule-pains" class="font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400">Zero Alerts</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Group: Pharmacokinetics (ADME) -->
+                        <div class="space-y-3">
+                            <h4 class="text-xs font-bold uppercase text-slate-400 tracking-wider">In-Silico Pharmacokinetics (ADMET)</h4>
+                            <div class="bg-slate-900/60 rounded-xl p-3 border border-slate-800 space-y-2 text-xs">
+                                <div class="flex justify-between items-center py-1 border-b border-slate-800/80">
+                                    <span class="text-slate-400">Blood-Brain Barrier (BBBP)</span>
+                                    <span id="pk-bbbp" class="font-bold px-2 py-0.5 rounded bg-slate-800 text-cyan-400">--</span>
+                                </div>
+                                <div class="flex justify-between items-center py-1 border-b border-slate-800/80">
+                                    <span class="text-slate-400">Human Intestinal Absorption</span>
+                                    <span id="pk-hia" class="font-bold text-emerald-400">High (>90%)</span>
+                                </div>
+                                <div class="flex justify-between items-center py-1 border-b border-slate-800/80">
+                                    <span class="text-slate-400">Caco-2 Permeability</span>
+                                    <span id="pk-caco2" class="font-bold text-white">Moderate</span>
+                                </div>
+                                <div class="flex justify-between items-center py-1 border-b border-slate-800/80">
+                                    <span class="text-slate-400">Plasma Protein Binding (PPB)</span>
+                                    <span id="pk-ppb" class="font-bold text-slate-300">Moderate (~80%)</span>
+                                </div>
+                                <div class="flex justify-between items-center py-1">
+                                    <span class="text-slate-400">CYP450 3A4 Substrate/Inhibitor</span>
+                                    <span id="pk-cyp" class="font-bold text-emerald-400">Low Liability</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bioavailability Radar Chart -->
+                <div class="glass-card rounded-2xl p-5 flex flex-col justify-between">
+                    <div class="border-b border-borderbg pb-3">
+                        <h3 class="font-bold text-white text-base flex items-center gap-2">
+                            <i class="fa-solid fa-chart-pie text-purple-400"></i>
+                            <span>Bioavailability Radar</span>
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-1">6 physicochemical axes vs optimal therapeutic window (shaded zone).</p>
+                    </div>
+
+                    <div class="h-64 flex items-center justify-center">
+                        <canvas id="radarChart"></canvas>
+                    </div>
+
+                    <div class="text-[11px] text-center text-slate-400 border-t border-borderbg pt-2">
+                        Evaluated across Lipophilicity, Size, Polarity, Solubility, Saturation & Flexibility.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Explainable AI (XAI) Atomic Attribution Heatmap Card -->
+            <div class="glass-card rounded-2xl p-6 glow-cyan">
+                <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-borderbg pb-4 mb-4 gap-2">
+                    <div>
+                        <h3 class="font-bold text-white text-lg flex items-center gap-2">
+                            <i class="fa-solid fa-brain text-purple-400"></i>
+                            <span>Explainable AI (XAI): Local Atom-Level Attribution Heatmap</span>
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-1">
+                            Calculated via atomic LogP partition contributions and Gasteiger partial charges: <span class="font-mono text-cyan-300">w_i = -1.2 · LogP_i + 0.8 · |q_i|</span>.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs">
+                        <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> Green = Promotes Solubility</div>
+                        <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-rose-500"></span> Red = Decreases Solubility</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800 flex items-center justify-center min-h-[260px]">
+                        <img id="xai-heatmap-img" src="" alt="XAI Atom Attribution Heatmap" class="max-h-64 object-contain rounded-lg">
+                    </div>
+
+                    <div class="space-y-3">
+                        <h4 class="text-sm font-bold text-white">Chemical Feature Attribution Breakdown:</h4>
+                        <div id="xai-explanation-text" class="text-xs text-slate-300 leading-relaxed bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2">
+                            <!-- Populated via JS -->
+                        </div>
+                        <div class="p-3 rounded-xl bg-purple-950/40 border border-purple-800/60 text-xs text-purple-300 flex items-start gap-2.5">
+                            <i class="fa-solid fa-lightbulb text-purple-400 mt-0.5"></i>
+                            <div>
+                                <b>Scientific Takeaway:</b> Polar electronegative heteroatoms (O, N) create positive electrostatic hydration enthalpy with water, whereas hydrophobic aromatic carbocyclic motifs dominate free energy penalties.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- ============================================================== -->
+        <!-- TAB 2: AI LEAD OPTIMIZER & BIOISOSTERES -->
+        <!-- ============================================================== -->
+        <section id="tab-optimizer" class="tab-content space-y-6">
+            <div class="glass-card rounded-2xl p-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-borderbg pb-4 mb-4 gap-2">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i>
+                            <span>AI Lead Optimization & Bioisostere Generation</span>
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">
+                            Applies 8 classical medicinal chemistry transformation rules to fix pharmacophore liabilities and generate superior structural analogs.
+                        </p>
+                    </div>
+                    <button onclick="runLeadOptimization()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-purple-600/20 transition flex items-center gap-2">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>Generate Structural Analogs</span>
+                    </button>
+                </div>
+
+                <!-- Analogs Grid Container -->
+                <div id="analogs-loading" class="hidden py-12 text-center text-slate-400">
+                    <div class="spinner mx-auto mb-3"></div>
+                    <p class="text-sm">Applying bioisosteric transformations and predicting multi-endpoint profiles...</p>
+                </div>
+
+                <div id="analogs-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ============================================================== -->
+        <!-- TAB 3: BATCH VIRTUAL SCREENING (vHTS) -->
+        <!-- ============================================================== -->
+        <section id="tab-screening" class="tab-content space-y-6">
+            <div class="glass-card rounded-2xl p-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-borderbg pb-4 mb-4 gap-2">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-emerald-400"></i>
+                            <span>Virtual High-Throughput Screening (vHTS)</span>
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">
+                            Screen multiple compounds concurrently across Aqueous Solubility, Lipophilicity, BBBP, and Toxicity.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="runBatchScreening()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-emerald-600/20 transition flex items-center gap-2">
+                            <i class="fa-solid fa-play"></i>
+                            <span>Run Batch Screening</span>
+                        </button>
+                        <button onclick="exportBatchCSV()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-2">
+                            <i class="fa-solid fa-download"></i>
+                            <span>Export CSV</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Batch Table -->
+                <div class="overflow-x-auto rounded-xl border border-slate-800">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                            <tr>
+                                <th class="p-3">Compound ID</th>
+                                <th class="p-3">Chemical SMILES</th>
+                                <th class="p-3">Formula</th>
+                                <th class="p-3">LogS</th>
+                                <th class="p-3">LogD</th>
+                                <th class="p-3">ClinTox</th>
+                                <th class="p-3">p53 Tox</th>
+                                <th class="p-3">BBBP</th>
+                                <th class="p-3">QED</th>
+                                <th class="p-3">Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="screening-tbody" class="divide-y divide-slate-800/80 bg-slate-950/40 font-mono">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ============================================================== -->
+        <!-- TAB 4: BENCHMARKS & ARCHITECTURE -->
+        <!-- ============================================================== -->
+        <section id="tab-benchmarks" class="tab-content space-y-6">
+            <div class="glass-card rounded-2xl p-6">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-chart-line text-amber-400"></i>
+                    <span>Empirical Machine Learning Benchmarks & Architecture</span>
+                </h2>
+                <p class="text-xs text-slate-400 mb-6">
+                    Quantitative evaluation across 10 distinct regression and classification algorithms on the Delaney ESOL and Therapeutics Data Commons (TDC) benchmarks.
+                </p>
+
+                <!-- Benchmark Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800">
+                        <span class="text-xs text-slate-400 uppercase">Solubility R² Score</span>
+                        <div class="text-2xl font-extrabold text-emerald-400 mt-1">0.9029</div>
+                        <span class="text-[11px] text-slate-400">Extra Trees (Tuned)</span>
+                    </div>
+                    <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800">
+                        <span class="text-xs text-slate-400 uppercase">Solubility MAE</span>
+                        <div class="text-2xl font-extrabold text-cyan-400 mt-1">0.4628</div>
+                        <span class="text-[11px] text-slate-400">Below Wet-Lab Assay Error (±0.50)</span>
+                    </div>
+                    <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800">
+                        <span class="text-xs text-slate-400 uppercase">ClinTox ROC-AUC</span>
+                        <div class="text-2xl font-extrabold text-purple-400 mt-1">0.9249</div>
+                        <span class="text-[11px] text-slate-400">Clinical Failure Discrimination</span>
+                    </div>
+                    <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800">
+                        <span class="text-xs text-slate-400 uppercase">Hybrid Feature Space</span>
+                        <div class="text-2xl font-extrabold text-amber-400 mt-1">2,068 D</div>
+                        <span class="text-[11px] text-slate-400">20 Descriptors + 2,048 ECFP4 Bits</span>
+                    </div>
+                </div>
+
+                <!-- Embedded Architecture Diagram -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+                    <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800">
+                        <h3 class="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">End-to-End Pipeline Architecture</h3>
+                        <img src="/results/pipeline_architecture_diagram.png" alt="System Architecture Diagram" class="w-full rounded-lg shadow-md">
+                    </div>
+                    <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800">
+                        <h3 class="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Multi-Endpoint ROC-AUC Curves</h3>
+                        <img src="/results/multi_endpoint_roc_curves.png" alt="Multi Endpoint ROC Curves" class="w-full rounded-lg shadow-md">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ============================================================== -->
+        <!-- TAB 5: DOCUMENTATION & ACADEMIC VIVA DEFENSE -->
+        <!-- ============================================================== -->
+        <section id="tab-docs" class="tab-content space-y-6">
+            <div class="glass-card rounded-2xl p-6">
+                <div class="flex items-center justify-between border-b border-borderbg pb-4 mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-graduation-cap text-cyan-400"></i>
+                            <span>Academic Viva Defense & Technical Documentation</span>
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">
+                            Formal project documentation, research attribution, and oral defense answers.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Academic Metadata Card -->
+                <div class="bg-slate-900/60 rounded-xl p-5 border border-slate-800 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        <div>
+                            <span class="text-slate-400">Degree Program:</span>
+                            <p class="font-bold text-white text-sm">Bachelor of Technology (B.Tech) in Computer Science & Engineering</p>
+                        </div>
+                        <div>
+                            <span class="text-slate-400">Specialization:</span>
+                            <p class="font-bold text-cyan-400 text-sm">Artificial Intelligence & Machine Learning (AI & ML)</p>
+                        </div>
+                        <div>
+                            <span class="text-slate-400">Lead Researcher:</span>
+                            <p class="font-bold text-emerald-400 text-sm">M. Pramod &nbsp;•&nbsp; Registration Number: 24BAI1417</p>
+                        </div>
+                        <div>
+                            <span class="text-slate-400">Department:</span>
+                            <p class="font-bold text-slate-200 text-sm">School of Computer Science and Engineering (SCOPE)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Viva Q&A Accordion -->
+                <div class="space-y-3">
+                    <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800">
+                        <h4 class="font-bold text-sm text-cyan-400 flex items-center gap-2">
+                            <i class="fa-solid fa-circle-question"></i>
+                            <span>Q1: Why does Extra Trees (R² = 0.9029) outperform Deep Neural Networks on this dataset?</span>
+                        </h4>
+                        <p class="text-xs text-slate-300 mt-2 leading-relaxed">
+                            <b>Answer:</b> Deep neural networks struggle on the Delaney dataset (1,128 samples) with 2,068 sparse binary features because the sample-to-feature ratio (<span class="font-mono">n / p ≈ 0.55</span>) causes severe overparameterization. Extremely Randomized Trees (Extra Trees) draw random linear cut-points across subsets of features, suppressing variance on bit collision noise and preventing overfitting.
+                        </p>
+                    </div>
+
+                    <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800">
+                        <h4 class="font-bold text-sm text-cyan-400 flex items-center gap-2">
+                            <i class="fa-solid fa-circle-question"></i>
+                            <span>Q2: What is the scientific basis of the Local Explainability (XAI) equation?</span>
+                        </h4>
+                        <p class="text-xs text-slate-300 mt-2 leading-relaxed">
+                            <b>Answer:</b> The weight formula <span class="font-mono text-cyan-300">w_i = -1.2 · LogP_i + 0.8 · |q_i|</span> fuses Wildman-Crippen atomic partition contributions with Gasteiger partial electrostatic charges. Atoms with negative LogP and high partial charge increase hydration enthalpy with solvent water molecules, driving dissolution.
+                        </p>
+                    </div>
+
+                    <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800">
+                        <h4 class="font-bold text-sm text-cyan-400 flex items-center gap-2">
+                            <i class="fa-solid fa-circle-question"></i>
+                            <span>Q3: Why are PAINS alerts critical in virtual screening?</span>
+                        </h4>
+                        <p class="text-xs text-slate-300 mt-2 leading-relaxed">
+                            <b>Answer:</b> Pan-Assay Interference Compounds (PAINS) contain promiscuous chemical motifs (e.g. rhodanines, quinones) that produce false-positive readouts by covalent protein modification, metal chelation, or light scatter. Automated filtering saves millions in wet-lab assay costs.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-borderbg bg-darkbg/90 mt-12 py-6 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4">
+            <p>Molecular Property Prediction & In-Silico ADMET Intelligence Platform • Developed by <b>M. Pramod</b> (24BAI1417)</p>
+            <p class="mt-1">B.Tech Computer Science and Engineering (AI & ML) • School of Computer Science and Engineering (SCOPE)</p>
+        </div>
+    </footer>
+
+    <!-- ============================================================== -->
+    <!-- CLIENT APPLICATION JAVASCRIPT -->
+    <!-- ============================================================== -->
+    <script>
+        // Global State
+        let currentSmiles = "CC(=O)Oc1ccccc1C(=O)O";
+        let currentCandidateName = "Aspirin";
+        let currentAdmetData = null;
+        let glViewer = null;
+        let isRotating = true;
+        let current3DStyle = "stick";
+        let radarChartInstance = null;
+
+        // Initialize Application
+        document.addEventListener("DOMContentLoaded", () => {
+            init3DViewer();
+            initRadarChart();
+            runStudioPrediction();
+        });
+
+        // Tab Switching
+        function switchTab(tabId) {
+            document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+            document.querySelectorAll(".nav-btn").forEach(el => {
+                el.classList.remove("text-cyan-400", "bg-cyan-950/60", "border", "border-cyan-800/80");
+                el.classList.add("text-slate-300");
+            });
+
+            const activeTab = document.getElementById("tab-" + tabId);
+            const activeNav = document.getElementById("nav-" + tabId);
+            if (activeTab) activeTab.classList.add("active");
+            if (activeNav) {
+                activeNav.classList.remove("text-slate-300");
+                activeNav.classList.add("text-cyan-400", "bg-cyan-950/60", "border", "border-cyan-800/80");
+            }
+
+            if (tabId === 'optimizer' && !document.getElementById('analogs-container').children.length) {
+                runLeadOptimization();
+            } else if (tabId === 'screening' && !document.getElementById('screening-tbody').children.length) {
+                runBatchScreening();
+            }
+        }
+
+        // Preset Loader
+        function loadPreset(name, smiles) {
+            document.getElementById("smiles-input").value = smiles;
+            currentCandidateName = name;
+            runStudioPrediction();
+        }
+
+        // 3Dmol.js Viewer Initialization
+        function init3DViewer() {
+            const element = document.getElementById("viewer-3d");
+            glViewer = $3Dmol.createViewer(element, { backgroundColor: "#020617" });
+        }
+
+        function update3DConformer(molBlock) {
+            if (!glViewer) return;
+            const loading = document.getElementById("viewer-3d-loading");
+            if (loading) loading.classList.add("hidden");
+
+            glViewer.clear();
+            glViewer.addModel(molBlock, "mol");
+            apply3DStyle();
+            glViewer.zoomTo();
+            glViewer.render();
+            if (isRotating) {
+                glViewer.animate({ loop: "forward", reps: 0, step: 0.8 });
+            }
+        }
+
+        function apply3DStyle() {
+            if (!glViewer) return;
+            if (current3DStyle === "stick") {
+                glViewer.setStyle({}, { stick: { radius: 0.16, colorscheme: "Jmol" } });
+            } else if (current3DStyle === "sphere") {
+                glViewer.setStyle({}, { sphere: { scale: 0.28, colorscheme: "Jmol" }, stick: { radius: 0.08 } });
+            }
+            glViewer.render();
+        }
+
+        function set3DStyle(style) {
+            current3DStyle = style;
+            apply3DStyle();
+        }
+
+        function toggle3DRotation() {
+            isRotating = !isRotating;
+            const btn = document.getElementById("btn-toggle-rotate");
+            if (isRotating) {
+                glViewer.animate({ loop: "forward", reps: 0, step: 0.8 });
+                btn.classList.add("bg-cyan-950", "text-cyan-400", "border-cyan-800");
+            } else {
+                glViewer.stopAnimate();
+                btn.classList.remove("bg-cyan-950", "text-cyan-400", "border-cyan-800");
+            }
+        }
+
+        function reset3DCamera() {
+            if (glViewer) {
+                glViewer.zoomTo();
+                glViewer.render();
+            }
+        }
+
+        // Chart.js Radar Initialization
+        function initRadarChart() {
+            const ctx = document.getElementById("radarChart").getContext("2d");
+            radarChartInstance = new Chart(ctx, {
+                type: "radar",
+                data: {
+                    labels: ["Lipophilicity", "Size (MW)", "Polarity", "Solubility", "Saturation", "Flexibility"],
+                    datasets: [
+                        {
+                            label: "Candidate Molecule",
+                            data: [0.6, 0.5, 0.7, 0.8, 0.4, 0.5],
+                            backgroundColor: "rgba(6, 182, 212, 0.25)",
+                            borderColor: "#06b6d4",
+                            pointBackgroundColor: "#06b6d4",
+                            pointBorderColor: "#fff",
+                            borderWidth: 2
+                        },
+                        {
+                            label: "Optimal Drug-Like Zone",
+                            data: [0.7, 0.7, 0.7, 0.7, 0.7, 0.7],
+                            backgroundColor: "rgba(16, 185, 129, 0.1)",
+                            borderColor: "rgba(16, 185, 129, 0.5)",
+                            borderDash: [4, 4],
+                            borderWidth: 1.5,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: "rgba(255, 255, 255, 0.1)" },
+                            grid: { color: "rgba(255, 255, 255, 0.08)" },
+                            pointLabels: { color: "#94a3b8", font: { size: 10, weight: "bold" } },
+                            ticks: { display: false, max: 1.0, min: 0 }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function updateRadarChart(admet) {
+            if (!radarChartInstance) return;
+            const desc = admet.Descriptors;
+            const preds = admet.Predictions;
+
+            // Normalized 0-1 metrics for radar representation
+            const lipoNorm = Math.min(Math.max((preds.Lipophilicity_LogD + 2) / 6.0, 0.1), 1.0);
+            const mwNorm = Math.min(Math.max(desc.Molecular_Weight / 600.0, 0.1), 1.0);
+            const polarNorm = Math.min(Math.max(desc.TPSA / 160.0, 0.1), 1.0);
+            const solNorm = Math.min(Math.max((preds.Solubility_LogS + 8) / 8.0, 0.1), 1.0);
+            const satNorm = Math.min(Math.max(desc.Fraction_CSP3, 0.1), 1.0);
+            const flexNorm = Math.min(Math.max(desc.Num_Rotatable_Bonds / 12.0, 0.1), 1.0);
+
+            radarChartInstance.data.datasets[0].data = [lipoNorm, mwNorm, polarNorm, solNorm, satNorm, flexNorm];
+            radarChartInstance.update();
+        }
+
+        // Real-Time Studio Prediction Execution
+        async function runStudioPrediction() {
+            const smi = document.getElementById("smiles-input").value.trim();
+            if (!smi) return;
+
+            currentSmiles = smi;
+            const btnSpinner = document.getElementById("btn-predict-spinner");
+            const btnText = document.getElementById("btn-predict-text");
+            btnSpinner.classList.remove("hidden");
+            btnText.textContent = "Computing...";
+
+            try {
+                // 1. Fetch ADMET Profile
+                const resAdmet = await fetch("/api/v1/predict/admet", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ smiles: smi })
+                });
+                const admetJson = await resAdmet.json();
+                if (!admetJson.success) throw new Error(admetJson.detail || "Prediction failed");
+                currentAdmetData = admetJson.data;
+                renderAdmetUI(currentAdmetData);
+
+                // 2. Fetch 2D Vector SVG
+                const resSvg = await fetch("/api/v1/molecule/svg-2d", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ smiles: smi })
+                });
+                const svgJson = await resSvg.json();
+                if (svgJson.success) {
+                    document.getElementById("svg-container").innerHTML = svgJson.svg;
+                }
+
+                // 3. Fetch 3D Conformer
+                const res3d = await fetch("/api/v1/molecule/conformer-3d", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ smiles: smi })
+                });
+                const json3d = await res3d.json();
+                if (json3d.success) {
+                    update3DConformer(json3d.mol_block);
+                }
+
+                // 4. Fetch XAI Atom Heatmap & Attribution
+                const resXai = await fetch("/api/v1/explain/attribution", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ smiles: smi })
+                });
+                const jsonXai = await resXai.json();
+                if (jsonXai.success) {
+                    document.getElementById("xai-heatmap-img").src = jsonXai.heatmap_data_uri;
+                    renderXaiExplanation(jsonXai.explanation);
+                }
+
+            } catch (err) {
+                alert("Error analyzing molecule: " + err.message);
+            } finally {
+                btnSpinner.classList.add("hidden");
+                btnText.textContent = "Analyze";
+            }
+        }
+
+        // Render ADMET UI elements
+        function renderAdmetUI(data) {
+            const preds = data.Predictions;
+            const desc = data.Descriptors;
+            const dl = data.Drug_Likeness;
+            const alerts = data.Structural_Alerts;
+            const pk = data.Pharmacokinetics;
+
+            // KPIs
+            document.getElementById("kpi-score").textContent = data.Overall_Candidate_Score;
+            const scoreBar = document.getElementById("kpi-score-bar");
+            scoreBar.style.width = data.Overall_Candidate_Score + "%";
+            document.getElementById("kpi-score-badge").textContent = data.Overall_Candidate_Score >= 70 ? "Favorable" : "Moderate";
+
+            document.getElementById("kpi-logs").textContent = preds.Solubility_LogS.toFixed(2);
+            document.getElementById("kpi-logs").style.color = preds.Solubility_Color;
+            document.getElementById("kpi-logs-class").textContent = preds.Solubility_Class;
+            document.getElementById("kpi-logs-mg").textContent = preds.Solubility_mg_mL.toFixed(2) + " mg/mL";
+
+            document.getElementById("kpi-logd").textContent = preds.Lipophilicity_LogD.toFixed(2);
+
+            const clintoxBadge = document.getElementById("kpi-clintox-badge");
+            const isHighRisk = preds.ClinTox_Risk.includes("High");
+            clintoxBadge.textContent = isHighRisk ? "High Risk" : "Safe / Tolerated";
+            clintoxBadge.className = isHighRisk ?
+                "text-sm font-bold px-2.5 py-1 rounded-md bg-rose-950 text-rose-400 border border-rose-800" :
+                "text-sm font-bold px-2.5 py-1 rounded-md bg-emerald-950 text-emerald-400 border border-emerald-800";
+            document.getElementById("kpi-clintox-prob").textContent = "Probability: " + (preds.ClinTox_Probability * 100).toFixed(1) + "%";
+
+            const p53Badge = document.getElementById("kpi-p53-badge");
+            p53Badge.textContent = preds.p53_Genotoxicity.includes("Positive") ? "p53 Mutagenic" : "p53 Negative";
+
+            // 2D Card Metadata
+            document.getElementById("mol-formula").textContent = "Formula: " + data.Formula;
+            document.getElementById("meta-mw").textContent = desc.Molecular_Weight.toFixed(1);
+            document.getElementById("meta-logp").textContent = desc.MolLogP.toFixed(2);
+            document.getElementById("meta-tpsa").textContent = desc.TPSA.toFixed(1);
+            document.getElementById("meta-qed").textContent = dl.QED.toFixed(3);
+
+            // Medicinal Chemistry Rules
+            document.getElementById("rule-lipinski").textContent = dl.Lipinski_Pass ? "Pass (0 Violations)" : "Violation";
+            document.getElementById("rule-lipinski").className = dl.Lipinski_Pass ? "font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400" : "font-bold px-2 py-0.5 rounded bg-rose-950 text-rose-400";
+
+            document.getElementById("rule-veber").textContent = dl.Veber_Pass ? "Pass" : "Violation";
+            document.getElementById("rule-veber").className = dl.Veber_Pass ? "font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400" : "font-bold px-2 py-0.5 rounded bg-rose-950 text-rose-400";
+
+            document.getElementById("rule-ghose").textContent = dl.Ghose_Pass ? "Pass" : "Violation";
+            document.getElementById("rule-cns").textContent = dl.CNS_MPO_Score.toFixed(1) + " / 6.0";
+
+            document.getElementById("rule-pains").textContent = alerts.PAINS_Safe ? "Zero Alerts" : alerts.PAINS_Alerts_Count + " Alerts";
+            document.getElementById("rule-pains").className = alerts.PAINS_Safe ? "font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400" : "font-bold px-2 py-0.5 rounded bg-amber-950 text-amber-400";
+
+            // Pharmacokinetics
+            document.getElementById("pk-bbbp").textContent = preds.BBBP_Penetration;
+            document.getElementById("pk-caco2").textContent = pk.Caco2_Permeability;
+            document.getElementById("pk-hia").textContent = pk.Human_Intestinal_Absorption;
+            document.getElementById("pk-ppb").textContent = pk.Plasma_Protein_Binding;
+
+            updateRadarChart(data);
+        }
+
+        // Render XAI Explanation text
+        function renderXaiExplanation(exp) {
+            const container = document.getElementById("xai-explanation-text");
+            let html = `<div><b>Dominant Hydration Drivers:</b> ${exp.positive_contributors.join(", ") || "None"}</div>`;
+            html += `<div class="mt-1"><b>Hydrophobic / Insoluble Drivers:</b> ${exp.negative_contributors.join(", ") || "None"}</div>`;
+            html += `<div class="mt-2 text-slate-400">Net Balance: <span class="text-white font-semibold">${exp.overall_solubility_balance}</span></div>`;
+            container.innerHTML = html;
+        }
+
+        // Lead Optimization Runner
+        async function runLeadOptimization() {
+            const container = document.getElementById("analogs-container");
+            const loading = document.getElementById("analogs-loading");
+            container.innerHTML = "";
+            loading.classList.remove("hidden");
+
+            try {
+                const res = await fetch("/api/v1/optimize/lead?max_analogs=6", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ smiles: currentSmiles })
+                });
+                const json = await res.json();
+                if (!json.success) throw new Error(json.detail);
+
+                const analogs = json.data.Analogs;
+                if (!analogs || analogs.length === 0) {
+                    container.innerHTML = `<div class="col-span-full py-8 text-center text-slate-400">No applicable bioisosteric reaction rules matched this specific pharmacophore core.</div>`;
+                    return;
+                }
+
+                analogs.forEach((a, idx) => {
+                    const card = document.createElement("div");
+                    card.className = "bg-slate-900/80 rounded-xl p-4 border border-slate-800 space-y-3 relative hover:border-purple-500/50 transition";
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">Analog #${idx + 1}</span>
+                            <span class="text-xs font-bold ${a.Delta_Overall_Score >= 0 ? 'text-emerald-400' : 'text-slate-400'}">
+                                ${a.Delta_Overall_Score >= 0 ? '+' : ''}${a.Delta_Overall_Score} pts
+                            </span>
+                        </div>
+                        <h4 class="font-bold text-sm text-white">${a.Rule_Applied}</h4>
+                        <p class="text-xs text-slate-400 leading-snug">${a.Rule_Rationale}</p>
+                        <div class="p-2 rounded bg-slate-950 font-mono text-[11px] text-slate-300 truncate" title="${a.Analog_SMILES}">
+                            ${a.Analog_SMILES}
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-center text-xs">
+                            <div class="bg-slate-950/60 p-2 rounded">
+                                <span class="text-slate-500 block text-[10px]">Δ Solubility</span>
+                                <span class="font-bold ${a.Delta_Solubility_LogS >= 0 ? 'text-emerald-400' : 'text-rose-400'}">
+                                    ${a.Delta_Solubility_LogS >= 0 ? '+' : ''}${a.Delta_Solubility_LogS}
+                                </span>
+                            </div>
+                            <div class="bg-slate-950/60 p-2 rounded">
+                                <span class="text-slate-500 block text-[10px]">Δ QED Drug-Likeness</span>
+                                <span class="font-bold ${a.Delta_QED >= 0 ? 'text-emerald-400' : 'text-slate-400'}">
+                                    ${a.Delta_QED >= 0 ? '+' : ''}${a.Delta_QED}
+                                </span>
+                            </div>
+                        </div>
+                        <button onclick="loadPreset('Analog_${idx+1}', '${a.Analog_SMILES}')" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold transition">
+                            Load as Active Candidate
+                        </button>
+                    `;
+                    container.appendChild(card);
+                });
+
+            } catch (err) {
+                container.innerHTML = `<div class="col-span-full py-8 text-center text-rose-400">${err.message}</div>`;
+            } finally {
+                loading.classList.add("hidden");
+            }
+        }
+
+        // Batch Screening Runner
+        const sampleBatchList = [
+            { id: "Aspirin", smiles: "CC(=O)Oc1ccccc1C(=O)O" },
+            { id: "Ibuprofen", smiles: "CC(C)Cc1ccc(cc1)C(C)C(=O)O" },
+            { id: "Paracetamol", smiles: "CC(=O)Nc1ccc(O)cc1" },
+            { id: "Caffeine", smiles: "Cn1cnc2c1c(=O)n(c(=O)n2C)C" },
+            { id: "Nicotine", smiles: "CN1CCC[C@H]1c2cccnc2" },
+            { id: "Atorvastatin", smiles: "CC(C)c1c(C(=O)Nc2ccccc2)c(-c2ccccc2)c(-c2ccc(F)cc2)n1CC[C@@H](O)C[C@@H](O)CC(=O)O" },
+            { id: "Metformin", smiles: "CN(C)C(=N)N=C(N)N" },
+            { id: "Penicillin_G", smiles: "CC1(C)S[C@@H]2[C@H](NC(=O)Cc3ccccc3)C(=O)N2[C@H]1C(=O)O" },
+            { id: "Amoxicillin", smiles: "CC1(C)SC2C(NC(=O)C(N)c3ccc(O)cc3)C(=O)N2C1C(=O)O" },
+            { id: "Diazepam", smiles: "CN1C(=O)CN=C(c2ccccc2)c3cc(Cl)ccc13" }
+        ];
+
+        let lastBatchResults = [];
+
+        async function runBatchScreening() {
+            const tbody = document.getElementById("screening-tbody");
+            tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400"><div class="spinner mx-auto mb-2"></div>Screening multi-compound callset...</td></tr>`;
+
+            try {
+                const res = await fetch("/api/v1/screening/batch", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ molecules: sampleBatchList })
+                });
+                const json = await res.json();
+                if (!json.success) throw new Error(json.detail);
+
+                lastBatchResults = json.results;
+                tbody.innerHTML = "";
+
+                lastBatchResults.forEach(r => {
+                    const tr = document.createElement("tr");
+                    tr.className = "hover:bg-slate-900/50 transition cursor-pointer";
+                    tr.onclick = () => loadPreset(r.id, r.smiles);
+                    tr.innerHTML = `
+                        <td class="p-3 font-bold text-white">${r.id}</td>
+                        <td class="p-3 text-slate-400 max-w-[140px] truncate" title="${r.smiles}">${r.smiles}</td>
+                        <td class="p-3 text-slate-300">${r.formula}</td>
+                        <td class="p-3 font-bold ${r.logS >= -4.0 ? 'text-emerald-400' : 'text-amber-400'}">${r.logS.toFixed(2)}</td>
+                        <td class="p-3 text-cyan-400 font-bold">${r.logD.toFixed(2)}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${r.clintox.includes('High') ? 'bg-rose-950 text-rose-400' : 'bg-emerald-950 text-emerald-400'}">${r.clintox.includes('High') ? 'High Risk' : 'Safe'}</span></td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] ${r.p53_tox.includes('Positive') ? 'bg-rose-950 text-rose-400' : 'bg-slate-800 text-slate-300'}">${r.p53_tox.includes('Positive') ? 'Mutagenic' : 'Negative'}</span></td>
+                        <td class="p-3 text-slate-300">${r.bbbp.includes('Non') ? 'BBBP-' : 'BBBP+'}</td>
+                        <td class="p-3 font-bold text-emerald-400">${r.qed.toFixed(2)}</td>
+                        <td class="p-3 font-bold text-white">${r.overall_score}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-rose-400">${err.message}</td></tr>`;
+            }
+        }
+
+        function exportBatchCSV() {
+            if (!lastBatchResults.length) {
+                alert("Please run batch screening first!");
+                return;
+            }
+            let csv = "ID,SMILES,Formula,LogS,LogD,ClinTox,p53_Tox,BBBP,QED,Overall_Score\n";
+            lastBatchResults.forEach(r => {
+                csv += `"${r.id}","${r.smiles}","${r.formula}",${r.logS},${r.logD},"${r.clintox}","${r.p53_tox}","${r.bbbp}",${r.qed},${r.overall_score}\n`;
+            });
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "vHTS_Batch_Screening_Results.csv";
+            a.click();
+        }
+
+        // Preclinical Dossier Downloader
+        async function downloadDossier() {
+            const btn = document.getElementById("btn-download-dossier");
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating...`;
+
+            try {
+                const res = await fetch(`/api/v1/dossier/download?name=${encodeURIComponent(currentCandidateName)}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ smiles: currentSmiles })
+                });
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${currentCandidateName}_In_Silico_ADMET_Dossier.html`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } catch (err) {
+                alert("Failed to download dossier: " + err.message);
+            } finally {
+                btn.innerHTML = `<i class="fa-solid fa-file-pdf"></i> Download Preclinical Dossier`;
+            }
+        }
+    </script>
+</body>
+</html>
